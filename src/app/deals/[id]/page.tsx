@@ -81,7 +81,7 @@ export default async function DealDetailPage({
     <div className="p-6 max-w-5xl">
       <div className="mb-4 flex items-start justify-between">
         <div>
-          <Link href="/deals" className="text-sm text-sky-600 hover:underline">
+          <Link href="/deals" className="text-sm text-emerald-600 hover:underline">
             ← 商談一覧
           </Link>
           <h1 className="text-xl font-bold mt-1">
@@ -89,7 +89,7 @@ export default async function DealDetailPage({
           </h1>
           <p className="text-sm text-slate-500">
             {deal.businessType} ・ {deal.phase} ・ 確度 {Math.round(deal.probability * 100)}% ・ 加重売上{" "}
-            <span className="font-semibold text-sky-700">{formatYen(weighted)}</span>
+            <span className="font-semibold text-emerald-700">{formatYen(weighted)}</span>
           </p>
         </div>
         <DeleteButton action={deleteDeal.bind(null, id)} label="商談を削除" />

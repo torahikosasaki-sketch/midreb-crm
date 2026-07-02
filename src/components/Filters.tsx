@@ -16,7 +16,7 @@ export function Filters({ owners, showPhase = false }: { owners: string[]; showP
   }
 
   const selectCls =
-    "rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm outline-none focus:border-sky-500";
+    "rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm outline-none focus:border-emerald-500";
 
   const hasFilter =
     params.get("businessType") || params.get("owner") || params.get("phase");

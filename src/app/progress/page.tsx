@@ -41,10 +41,10 @@ export default async function ProgressPage() {
                 <tr className="text-left text-slate-500 border-b border-slate-200 bg-slate-50">
                   <th className="py-2 px-3 font-medium">ブランド / 商品</th>
                   <th className="py-2 px-3 font-medium text-right">目標数</th>
-                  <th className="py-2 px-3 font-medium text-right bg-sky-50/60">動画投稿</th>
-                  <th className="py-2 px-3 font-medium text-right bg-sky-50/60">動画人数</th>
-                  <th className="py-2 px-3 font-medium text-right bg-sky-50/60">動画販売</th>
-                  <th className="py-2 px-3 font-medium text-right bg-sky-50/60">動画GMV</th>
+                  <th className="py-2 px-3 font-medium text-right bg-emerald-50/60">動画投稿</th>
+                  <th className="py-2 px-3 font-medium text-right bg-emerald-50/60">動画人数</th>
+                  <th className="py-2 px-3 font-medium text-right bg-emerald-50/60">動画販売</th>
+                  <th className="py-2 px-3 font-medium text-right bg-emerald-50/60">動画GMV</th>
                   <th className="py-2 px-3 font-medium text-right bg-violet-50/60">ライブ回数</th>
                   <th className="py-2 px-3 font-medium text-right bg-violet-50/60">ライブ人数</th>
                   <th className="py-2 px-3 font-medium text-right bg-violet-50/60">ライブ販売</th>
@@ -62,10 +62,10 @@ export default async function ProgressPage() {
                       <div className="text-xs text-slate-400">{r.productSku ?? "—"}</div>
                     </td>
                     <td className="py-2 px-3 text-right tabular-nums">{nz(r.targetCount)}</td>
-                    <td className="py-2 px-3 text-right tabular-nums bg-sky-50/30">{nz(r.videoPosts)}</td>
-                    <td className="py-2 px-3 text-right tabular-nums bg-sky-50/30">{nz(r.videoPosters)}</td>
-                    <td className="py-2 px-3 text-right tabular-nums bg-sky-50/30">{nz(r.videoSales)}</td>
-                    <td className="py-2 px-3 text-right tabular-nums bg-sky-50/30">
+                    <td className="py-2 px-3 text-right tabular-nums bg-emerald-50/30">{nz(r.videoPosts)}</td>
+                    <td className="py-2 px-3 text-right tabular-nums bg-emerald-50/30">{nz(r.videoPosters)}</td>
+                    <td className="py-2 px-3 text-right tabular-nums bg-emerald-50/30">{nz(r.videoSales)}</td>
+                    <td className="py-2 px-3 text-right tabular-nums bg-emerald-50/30">
                       {r.videoGmv == null ? "—" : formatYen(r.videoGmv)}
                     </td>
                     <td className="py-2 px-3 text-right tabular-nums bg-violet-50/30">{nz(r.liveCount)}</td>
@@ -111,7 +111,7 @@ export default async function ProgressPage() {
         <Inp name="liveGmv" label="ライブGMV" type="number" w="w-24" />
         <Inp name="gapToTarget" label="目標差分" type="number" w="w-20" />
         <Inp name="activityNote" label="活動記録" w="w-44" />
-        <button type="submit" className="rounded-md bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-700">
+        <button type="submit" className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">
           ＋ 追加
         </button>
       </form>

@@ -23,13 +23,13 @@ function Bar({
         <span className="tabular-nums">
           <span className="font-semibold text-slate-800">{fmt(actual)}</span>
           <span className="text-slate-400"> / {target != null ? fmt(target) : "—"}</span>
-          {pct != null && <span className="ml-1 text-sky-600">({pct}%)</span>}
+          {pct != null && <span className="ml-1 text-emerald-600">({pct}%)</span>}
         </span>
       </div>
       <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
         <div
           className={`h-full rounded-full ${
-            pct != null && pct >= 100 ? "bg-emerald-500" : "bg-sky-500"
+            pct != null && pct >= 100 ? "bg-emerald-500" : "bg-emerald-500"
           }`}
           style={{ width: `${pct ?? 0}%` }}
         />
@@ -126,7 +126,7 @@ export default async function TargetsPage() {
           <span className="text-slate-500">制作本数</span>
           <input name="productionTarget" type="number" className="rounded-md border border-slate-300 px-2 py-1.5 text-sm w-20" />
         </label>
-        <button type="submit" className="rounded-md bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-700">
+        <button type="submit" className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">
           ＋ 追加
         </button>
       </form>

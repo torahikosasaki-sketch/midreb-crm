@@ -14,7 +14,7 @@ export default async function NewDealPage() {
   return (
     <div className="p-6 max-w-3xl">
       <div className="mb-4">
-        <Link href="/deals" className="text-sm text-sky-600 hover:underline">
+        <Link href="/deals" className="text-sm text-emerald-600 hover:underline">
           ← 商談一覧
         </Link>
         <h1 className="text-xl font-bold mt-1">商談を追加</h1>

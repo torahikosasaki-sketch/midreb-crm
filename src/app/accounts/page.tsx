@@ -16,7 +16,7 @@ export default async function AccountsPage() {
         <span className="text-sm text-slate-500">{accounts.length} 社</span>
         <Link
           href="/accounts/new"
-          className="rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700"
+          className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
         >
           ＋ 顧客企業を追加
         </Link>
@@ -48,7 +48,7 @@ export default async function AccountsPage() {
                     {formatYen(gmvTotal)}
                   </td>
                   <td className="py-2 text-right">
-                    <Link href={`/accounts/${a.id}`} className="text-sky-600 hover:underline">
+                    <Link href={`/accounts/${a.id}`} className="text-emerald-600 hover:underline">
                       詳細
                     </Link>
                   </td>

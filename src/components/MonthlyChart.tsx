@@ -13,9 +13,9 @@ import {
 import { BUSINESS_TYPES, formatYen } from "@/lib/enums";
 
 const COLORS: Record<string, string> = {
-  storeb: "#0ea5e9",
-  国内TSP導入: "#8b5cf6",
-  海外進出: "#10b981",
+  storeb: "#059669",
+  "TTS導入・運用支援": "#14b8a6",
+  越境支援: "#8b5cf6",
   "他社動画・ライブ支援": "#f59e0b",
   コンサル: "#f43f5e",
 };

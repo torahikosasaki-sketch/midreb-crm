@@ -48,7 +48,7 @@ export const PHASE_DEFAULT_PROBABILITY: Record<Phase, number> = {
 /** カンバン列の色（Tailwind クラス断片） */
 export const PHASE_COLORS: Record<Phase, string> = {
   初回接触: "bg-slate-400",
-  提案: "bg-sky-500",
+  提案: "bg-teal-500",
   条件調整: "bg-amber-500",
   契約: "bg-violet-500",
   オンボーディング: "bg-emerald-500",

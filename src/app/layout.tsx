@@ -34,7 +34,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <header className="border-b border-slate-200 bg-white">
           <div className="flex items-center gap-6 px-6 h-14">
             <Link href="/" className="font-bold text-lg tracking-tight">
-              midreb <span className="text-sky-600">CRM</span>
+              midreb <span className="text-emerald-600">CRM</span>
             </Link>
             <nav className="flex items-center gap-1 text-sm">
               {NAV.map((n) => (

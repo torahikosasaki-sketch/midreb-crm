@@ -47,14 +47,14 @@ export default async function AccountDetailPage({
     <div className="p-6 max-w-4xl">
       <div className="mb-4 flex items-start justify-between">
         <div>
-          <Link href="/accounts" className="text-sm text-sky-600 hover:underline">
+          <Link href="/accounts" className="text-sm text-emerald-600 hover:underline">
             ← 顧客企業
           </Link>
           <h1 className="text-xl font-bold mt-1">{account.name}</h1>
           <p className="text-sm text-slate-500">
             商談 {account.deals.length} 件 ・ 想定GMV合計{" "}
             <span className="font-semibold text-slate-700">{formatYen(gmvTotal)}</span> ・ 加重売上{" "}
-            <span className="font-semibold text-sky-700">{formatYen(weightedTotal)}</span>
+            <span className="font-semibold text-emerald-700">{formatYen(weightedTotal)}</span>
           </p>
         </div>
         <DeleteButton action={deleteAccount.bind(null, id)} label="顧客企業を削除" />
@@ -76,7 +76,7 @@ export default async function AccountDetailPage({
                 <span className="w-28 text-slate-600">{d.phase}</span>
                 <span className="w-32 text-slate-500">{d.businessType}</span>
                 <span className="text-slate-500">確度 {Math.round(d.probability * 100)}%</span>
-                <span className="ml-auto font-semibold text-sky-700 tabular-nums">
+                <span className="ml-auto font-semibold text-emerald-700 tabular-nums">
                   {formatYen(weightedRevenue(d.expectedRevenue, d.probability))}
                 </span>
               </Link>

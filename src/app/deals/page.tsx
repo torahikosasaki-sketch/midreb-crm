@@ -40,11 +40,11 @@ export default async function DealsPage({
         <div className="text-sm">
           <span className="text-slate-500">{deals.length} 件</span>
           <span className="ml-4 text-slate-500">加重売上合計</span>
-          <span className="ml-1 font-bold text-sky-700">{formatYen(totalWeighted)}</span>
+          <span className="ml-1 font-bold text-emerald-700">{formatYen(totalWeighted)}</span>
         </div>
         <Link
           href="/deals/new"
-          className="rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700"
+          className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
         >
           ＋ 商談を追加
         </Link>
@@ -84,7 +84,7 @@ export default async function DealsPage({
                 <td className="py-2 pr-4 text-right tabular-nums text-slate-600">
                   {formatYen(d.expectedRevenue)}
                 </td>
-                <td className="py-2 pr-4 text-right tabular-nums font-semibold text-sky-700">
+                <td className="py-2 pr-4 text-right tabular-nums font-semibold text-emerald-700">
                   {formatYen(weightedRevenue(d.expectedRevenue, d.probability))}
                 </td>
                 <td className="py-2 pr-4 text-slate-600">{d.owner ?? "—"}</td>
@@ -92,7 +92,7 @@ export default async function DealsPage({
                   {d.expectedCloseDate ? d.expectedCloseDate.toISOString().slice(0, 10) : "—"}
                 </td>
                 <td className="py-2 text-right">
-                  <Link href={`/deals/${d.id}`} className="text-sky-600 hover:underline">
+                  <Link href={`/deals/${d.id}`} className="text-emerald-600 hover:underline">
                     詳細
                   </Link>
                 </td>

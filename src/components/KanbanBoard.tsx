@@ -85,14 +85,14 @@ export function KanbanBoard({ deals }: { deals: DealCard[] }) {
       <div className="flex items-center justify-between px-6 py-3 border-b border-slate-200 bg-white">
         <div className="flex items-baseline gap-2">
           <span className="text-sm text-slate-500">パイプライン加重売上合計</span>
-          <span className="text-2xl font-bold text-sky-700 tabular-nums">
+          <span className="text-2xl font-bold text-emerald-700 tabular-nums">
             {formatYen(grandTotal)}
           </span>
           <span className="text-xs text-slate-400">（失注・保留を除く / 月間）</span>
         </div>
         <Link
           href="/deals/new"
-          className="rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700"
+          className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
         >
           ＋ 商談を追加
         </Link>
@@ -153,7 +153,7 @@ function Column({
       <div
         ref={setNodeRef}
         className={`flex-1 min-h-24 space-y-2 p-2 overflow-y-auto thin-scroll transition-colors ${
-          isOver ? "bg-sky-50" : ""
+          isOver ? "bg-emerald-50" : ""
         }`}
       >
         {cards.map((card) =>
@@ -192,7 +192,7 @@ function CardBody({ card, overlay }: { card: DealCard; overlay?: boolean }) {
   return (
     <div
       className={`rounded-md border border-slate-200 bg-white p-3 shadow-sm ${
-        overlay ? "rotate-2 shadow-lg cursor-grabbing" : "cursor-grab hover:border-sky-300"
+        overlay ? "rotate-2 shadow-lg cursor-grabbing" : "cursor-grab hover:border-emerald-300"
       }`}
     >
       <div className="flex items-start justify-between gap-2">
@@ -206,7 +206,7 @@ function CardBody({ card, overlay }: { card: DealCard; overlay?: boolean }) {
       {card.services && (
         <div className="mt-1.5 flex flex-wrap gap-1">
           {parseServices(card.services).slice(0, 3).map((s) => (
-            <span key={s} className="rounded bg-sky-50 px-1.5 py-0.5 text-[10px] text-sky-700">
+            <span key={s} className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] text-emerald-700">
               {s}
             </span>
           ))}
@@ -223,7 +223,7 @@ function CardBody({ card, overlay }: { card: DealCard; overlay?: boolean }) {
         <Link
           href={`/deals/${card.id}`}
           onPointerDown={(e) => e.stopPropagation()}
-          className="text-sky-600 hover:underline"
+          className="text-emerald-600 hover:underline"
         >
           詳細
         </Link>

@@ -54,7 +54,7 @@ export default async function PipelinePage() {
         <h1 className="text-xl font-bold">月次パイプライン集計</h1>
         <div className="text-sm">
           <span className="text-slate-500">加重売上合計</span>
-          <span className="ml-2 text-xl font-bold text-sky-700">{formatYen(grandTotal)}</span>
+          <span className="ml-2 text-xl font-bold text-emerald-700">{formatYen(grandTotal)}</span>
         </div>
       </div>
       <p className="text-xs text-slate-400 mb-4">
@@ -92,7 +92,7 @@ export default async function PipelinePage() {
                     {(row[b] as number) > 0 ? formatYen(row[b] as number) : "—"}
                   </td>
                 ))}
-                <td className="py-2 pr-4 text-right tabular-nums font-semibold text-sky-700">
+                <td className="py-2 pr-4 text-right tabular-nums font-semibold text-emerald-700">
                   {formatYen(total)}
                 </td>
               </tr>

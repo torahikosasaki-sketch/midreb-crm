@@ -8,7 +8,7 @@ export default function NewAccountPage() {
   return (
     <div className="p-6 max-w-3xl">
       <div className="mb-4">
-        <Link href="/accounts" className="text-sm text-sky-600 hover:underline">
+        <Link href="/accounts" className="text-sm text-emerald-600 hover:underline">
           ← 顧客企業
         </Link>
         <h1 className="text-xl font-bold mt-1">顧客企業を追加</h1>

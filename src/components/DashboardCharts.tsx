@@ -20,14 +20,14 @@ const man = (v: number) => (v >= 10000 ? `${Math.round(v / 10000)}万` : String(
 
 const PHASE_HEX: Record<string, string> = {
   初回接触: "#94a3b8",
-  提案: "#0ea5e9",
+  提案: "#14b8a6",
   条件調整: "#f59e0b",
   契約: "#8b5cf6",
   オンボーディング: "#10b981",
   運用中: "#16a34a",
 };
 
-const BIZ_HEX = ["#0ea5e9", "#8b5cf6", "#10b981", "#f59e0b", "#f43f5e", "#94a3b8"];
+const BIZ_HEX = ["#059669", "#14b8a6", "#8b5cf6", "#f59e0b", "#f43f5e", "#94a3b8"];
 
 /** フェーズ別の加重売上（ファネル） */
 export function PhaseFunnel({
@@ -93,7 +93,7 @@ export function MonthlyBars({ data }: { data: { month: string; weighted: number 
         <XAxis dataKey="month" tick={{ fontSize: 11 }} />
         <YAxis tick={{ fontSize: 11 }} tickFormatter={man} />
         <Tooltip formatter={(v) => [yen(Number(v)), "加重売上"]} />
-        <Bar dataKey="weighted" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="weighted" fill="#059669" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );

@@ -39,7 +39,7 @@ function DealLine({ d }: { d: DealRow }) {
       {d.nextActionDate && (
         <span className="text-xs text-slate-500">次回 {ymd(d.nextActionDate)}</span>
       )}
-      <span className="ml-auto font-semibold text-sky-700 tabular-nums">
+      <span className="ml-auto font-semibold text-emerald-700 tabular-nums">
         {formatYen(weightedRevenue(d.expectedRevenue, d.probability))}
       </span>
     </Link>
@@ -104,7 +104,7 @@ export default async function MyPage({
         <Link
           href="/my"
           className={`rounded-full px-3 py-1 text-sm ${
-            !owner ? "bg-sky-600 text-white" : "bg-white border border-slate-300 text-slate-600 hover:bg-slate-50"
+            !owner ? "bg-emerald-600 text-white" : "bg-white border border-slate-300 text-slate-600 hover:bg-slate-50"
           }`}
         >
           全員
@@ -115,7 +115,7 @@ export default async function MyPage({
             href={`/my?owner=${encodeURIComponent(o)}`}
             className={`rounded-full px-3 py-1 text-sm ${
               owner === o
-                ? "bg-sky-600 text-white"
+                ? "bg-emerald-600 text-white"
                 : "bg-white border border-slate-300 text-slate-600 hover:bg-slate-50"
             }`}
           >
@@ -131,7 +131,7 @@ export default async function MyPage({
         </div>
         <div className="rounded-lg border border-slate-200 bg-white p-3">
           <div className="text-xs text-slate-500">加重売上（月間）</div>
-          <div className="text-lg font-bold text-sky-700 tabular-nums">{formatYen(pipelineTotal)}</div>
+          <div className="text-lg font-bold text-emerald-700 tabular-nums">{formatYen(pipelineTotal)}</div>
         </div>
         <div className="rounded-lg border border-rose-200 bg-rose-50 p-3">
           <div className="text-xs text-rose-500">アクション遅延</div>

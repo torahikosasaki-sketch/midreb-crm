@@ -19,8 +19,8 @@ export default async function CampaignsPage() {
       <div className="flex items-center justify-between px-6 py-3 border-b border-slate-200 bg-white">
         <div className="text-sm text-slate-500">
           {items.length} 件 ・ 動画GMV{" "}
-          <span className="font-semibold text-sky-700">{formatYen(totalVideoGmv)}</span> ・ ライブGMV{" "}
-          <span className="font-semibold text-sky-700">{formatYen(totalLiveGmv)}</span>
+          <span className="font-semibold text-emerald-700">{formatYen(totalVideoGmv)}</span> ・ ライブGMV{" "}
+          <span className="font-semibold text-emerald-700">{formatYen(totalLiveGmv)}</span>
         </div>
       </div>
 
@@ -32,10 +32,10 @@ export default async function CampaignsPage() {
               <th className="py-2 pr-3 font-medium text-right">総アサイン</th>
               <th className="py-2 pr-3 font-medium text-right">総販売</th>
               <th className="py-2 pr-3 font-medium text-right">総売上</th>
-              <th className="py-2 pr-3 font-medium text-right bg-sky-50/50">動画投稿</th>
-              <th className="py-2 pr-3 font-medium text-right bg-sky-50/50">動画人数</th>
-              <th className="py-2 pr-3 font-medium text-right bg-sky-50/50">動画販売</th>
-              <th className="py-2 pr-3 font-medium text-right bg-sky-50/50">動画GMV</th>
+              <th className="py-2 pr-3 font-medium text-right bg-emerald-50/50">動画投稿</th>
+              <th className="py-2 pr-3 font-medium text-right bg-emerald-50/50">動画人数</th>
+              <th className="py-2 pr-3 font-medium text-right bg-emerald-50/50">動画販売</th>
+              <th className="py-2 pr-3 font-medium text-right bg-emerald-50/50">動画GMV</th>
               <th className="py-2 pr-3 font-medium text-right bg-violet-50/50">ライブ回数</th>
               <th className="py-2 pr-3 font-medium text-right bg-violet-50/50">ライブ人数</th>
               <th className="py-2 pr-3 font-medium text-right bg-violet-50/50">ライブ販売</th>
@@ -56,10 +56,10 @@ export default async function CampaignsPage() {
                 <td className="py-2 pr-3 text-right tabular-nums">
                   {c.totalRevenue == null ? "—" : formatYen(c.totalRevenue)}
                 </td>
-                <td className="py-2 pr-3 text-right tabular-nums bg-sky-50/30">{nz(c.videoPosts)}</td>
-                <td className="py-2 pr-3 text-right tabular-nums bg-sky-50/30">{nz(c.videoPosters)}</td>
-                <td className="py-2 pr-3 text-right tabular-nums bg-sky-50/30">{nz(c.videoSales)}</td>
-                <td className="py-2 pr-3 text-right tabular-nums bg-sky-50/30">
+                <td className="py-2 pr-3 text-right tabular-nums bg-emerald-50/30">{nz(c.videoPosts)}</td>
+                <td className="py-2 pr-3 text-right tabular-nums bg-emerald-50/30">{nz(c.videoPosters)}</td>
+                <td className="py-2 pr-3 text-right tabular-nums bg-emerald-50/30">{nz(c.videoSales)}</td>
+                <td className="py-2 pr-3 text-right tabular-nums bg-emerald-50/30">
                   {c.videoGmv == null ? "—" : formatYen(c.videoGmv)}
                 </td>
                 <td className="py-2 pr-3 text-right tabular-nums bg-violet-50/30">{nz(c.liveCount)}</td>
@@ -101,7 +101,7 @@ export default async function CampaignsPage() {
           <Inp name="liveSales" label="ライブ販売" type="number" w="w-20" />
           <Inp name="liveGmv" label="ライブGMV" type="number" w="w-24" />
           <Inp name="partner" label="代理店" w="w-24" />
-          <button type="submit" className="rounded-md bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-700">
+          <button type="submit" className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">
             ＋ 追加
           </button>
         </form>

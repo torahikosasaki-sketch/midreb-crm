@@ -17,7 +17,7 @@ export function Field({
 }
 
 const inputCls =
-  "rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500";
+  "rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500";
 
 export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={`${inputCls} ${props.className ?? ""}`} />;
@@ -55,7 +55,7 @@ export function Button({
   variant?: "primary" | "ghost" | "danger";
 }) {
   const styles = {
-    primary: "bg-sky-600 text-white hover:bg-sky-700",
+    primary: "bg-emerald-600 text-white hover:bg-emerald-700",
     ghost: "bg-white text-slate-700 border border-slate-300 hover:bg-slate-50",
     danger: "bg-rose-600 text-white hover:bg-rose-700",
   }[variant];
@@ -80,7 +80,7 @@ export function LinkButton({
 }) {
   const styles =
     variant === "primary"
-      ? "bg-sky-600 text-white hover:bg-sky-700"
+      ? "bg-emerald-600 text-white hover:bg-emerald-700"
       : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-50";
   return (
     <Link

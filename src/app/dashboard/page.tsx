@@ -153,16 +153,16 @@ export default async function DashboardPage() {
                 <span className="tabular-nums">
                   <span className="font-bold text-slate-800">{formatYen(runningGmv)}</span>
                   <span className="text-slate-400"> / {formatYen(gmvTarget)}</span>
-                  <span className="ml-1 text-sky-600">({gmvPct}%)</span>
+                  <span className="ml-1 text-emerald-600">({gmvPct}%)</span>
                 </span>
               </div>
               <div className="h-3 w-full rounded-full bg-slate-100 overflow-hidden">
                 <div
-                  className={`h-full rounded-full ${gmvPct! >= 100 ? "bg-emerald-500" : "bg-sky-500"}`}
+                  className={`h-full rounded-full ${gmvPct! >= 100 ? "bg-emerald-500" : "bg-emerald-500"}`}
                   style={{ width: `${gmvPct}%` }}
                 />
               </div>
-              <Link href="/targets" className="mt-3 inline-block text-xs text-sky-600 hover:underline">
+              <Link href="/targets" className="mt-3 inline-block text-xs text-emerald-600 hover:underline">
                 目標 vs 実績の詳細 →
               </Link>
             </div>
@@ -177,12 +177,12 @@ export default async function DashboardPage() {
 
         <Card title="クリエイター実績">
           <div className="space-y-3 text-sm">
-            <Row label="動画 GMV" value={formatYen(videoGmv)} dot="bg-sky-500" />
+            <Row label="動画 GMV" value={formatYen(videoGmv)} dot="bg-emerald-500" />
             <Row label="ライブ GMV" value={formatYen(liveGmv)} dot="bg-violet-500" />
             <Row label="合計販売数" value={`${totalSales.toLocaleString("ja-JP")} 点`} dot="bg-emerald-500" />
             <Row label="失注件数" value={`${lostCount} 件`} dot="bg-rose-500" />
           </div>
-          <Link href="/campaigns" className="mt-4 inline-block text-xs text-sky-600 hover:underline">
+          <Link href="/campaigns" className="mt-4 inline-block text-xs text-emerald-600 hover:underline">
             クリエイター管理 →
           </Link>
         </Card>
@@ -210,7 +210,7 @@ export default async function DashboardPage() {
               })}
             </div>
           )}
-          <Link href="/my" className="mt-3 inline-block text-xs text-sky-600 hover:underline">
+          <Link href="/my" className="mt-3 inline-block text-xs text-emerald-600 hover:underline">
             担当者別ビュー →
           </Link>
         </Card>
@@ -233,13 +233,13 @@ function Kpi({
   return (
     <div
       className={`rounded-lg border p-3 ${
-        danger ? "border-rose-200 bg-rose-50" : accent ? "border-sky-200 bg-sky-50" : "border-slate-200 bg-white"
+        danger ? "border-rose-200 bg-rose-50" : accent ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-white"
       }`}
     >
       <div className={`text-xs ${danger ? "text-rose-500" : "text-slate-500"}`}>{label}</div>
       <div
         className={`text-lg font-bold tabular-nums ${
-          danger ? "text-rose-700" : accent ? "text-sky-700" : "text-slate-800"
+          danger ? "text-rose-700" : accent ? "text-emerald-700" : "text-slate-800"
         }`}
       >
         {value}

@@ -59,7 +59,7 @@ export function DealForm({
         <select
           name="accountId"
           defaultValue={initial?.accountId ?? ""}
-          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
         >
           <option value="">—（未設定）</option>
           {accounts.map((a) => (
@@ -111,7 +111,7 @@ export function DealForm({
 
       <div className="flex flex-col gap-1 text-sm justify-end">
         <span className="text-slate-600 font-medium">加重売上（自動）</span>
-        <div className="rounded-md bg-slate-100 px-3 py-2 font-semibold text-sky-700 tabular-nums">
+        <div className="rounded-md bg-slate-100 px-3 py-2 font-semibold text-emerald-700 tabular-nums">
           {formatYen(weighted)}
         </div>
       </div>

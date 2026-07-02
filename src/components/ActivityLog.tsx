@@ -13,7 +13,7 @@ export type ActivityItem = {
 };
 
 const TYPE_STYLE: Record<string, string> = {
-  架電: "bg-sky-100 text-sky-700",
+  架電: "bg-teal-100 text-teal-700",
   MTG: "bg-violet-100 text-violet-700",
   提案送付: "bg-amber-100 text-amber-700",
   メール: "bg-emerald-100 text-emerald-700",
@@ -87,7 +87,7 @@ export function ActivityLog({
         </label>
         <button
           type="submit"
-          className="rounded-md bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-700"
+          className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
         >
           記録
         </button>
@@ -99,7 +99,7 @@ export function ActivityLog({
         <ol className="relative border-l border-slate-200 ml-2">
           {activities.map((a) => (
             <li key={a.id} className="mb-4 ml-4">
-              <span className="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full bg-sky-500 border-2 border-white" />
+              <span className="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white" />
               <div className="flex items-center gap-2">
                 <span
                   className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${
