@@ -1,0 +1,160 @@
+// midreb 営業CRM スキーマ
+// DB: Supabase(Postgres)。enum / 配列はプロバイダ非依存にするため String で保持し、
+// アプリ層(src/lib/enums.ts)で値を制約する。
+// DATABASE_URL = Supabase 接続プーラー(6543, pgbouncer=true) — アプリ実行時用
+// DIRECT_URL   = Supabase 直結(5432)                        — マイグレーション用
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+/// 顧客企業（取引先・見込み客のマスター）
+model Account {
+  id               String      @id @default(cuid())
+  name             String // 企業名
+  businessType     String? // 事業区分
+  targetTier       String? // ターゲット階層
+  industry         String? // 業種
+  region           String? // 国内/海外
+  owner            String? // 担当者
+  status           String? // ステータス
+  contactName      String? // 連絡先(担当者名)
+  email            String? // メール
+  phone            String? // 電話
+  firstContactDate DateTime? // 初回接触日
+  salesTarget      Int? // 販売目標数
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  deals            Deal[]
+}
+
+/// 商談（営業案件・主役エンティティ）
+model Deal {
+  id                 String       @id @default(cuid())
+  account            Account?     @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  accountId          String?
+  businessType       String // 事業区分
+  phase              String       @default("初回接触") // フェーズ
+  probability        Float        @default(0) // 確度 (0-1)
+  services           String? // 提供サービス (カンマ区切り)
+  expectedRevenue    Int          @default(0) // 想定売上(円)
+  inflowChannel      String? // 流入経路
+  agencyName         String? // 代理店名
+  owner              String? // 担当者
+  expectedCloseDate  DateTime? // 受注予定日
+  nextActionDate     DateTime? // 次回アクション日（社内運用: リマインド用）
+  chatTool           String? // チャットツール
+  channelName        String? // チャンネル名
+  contractStatus     String? // 契約ステータス
+  contractType       String? // 契約種別
+  contractLink       String? // 契約書リンク
+  memo               String? // メモ
+  position           Int          @default(0) // カンバン内の並び順
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  activities         Activity[]
+  talents            DealTalent[]
+
+  @@index([phase])
+  @@index([businessType])
+  @@index([accountId])
+}
+
+/// 活動ログ（架電・MTG・提案送付などの行動履歴）
+model Activity {
+  id         String   @id @default(cuid())
+  deal       Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  dealId     String
+  type       String // 種別 (架電/MTG/提案送付/その他)
+  content    String? // 内容
+  occurredAt DateTime @default(now()) // 発生日時
+  owner      String? // 担当者
+  createdAt  DateTime @default(now())
+
+  @@index([dealId])
+}
+
+/// クリエイター・パートナー（CAP/TAPの人材プール）
+model Talent {
+  id      String       @id @default(cuid())
+  name    String // 氏名
+  type    String? // 区分 (CAP/TAP)
+  partner String? // 代理店/パートナー
+  store   String? // 利用ストア
+  memo    String?
+  deals   DealTalent[]
+}
+
+/// 商談 ⇔ クリエイター（N:N アサイン）
+model DealTalent {
+  deal       Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  dealId     String
+  talent     Talent   @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  talentId   String
+  assignedAt DateTime @default(now())
+
+  @@id([dealId, talentId])
+}
+
+/// クリエイター管理（ブランド×商品単位のキャンペーン実績）
+model Campaign {
+  id             String    @id @default(cuid())
+  brand          String // ブランド
+  productSku     String? // 商品名/SKU
+  totalAssign    Int? // 総アサイン数
+  totalSales     Int? // 総販売数
+  totalRevenue   Int? // 総売上
+  videoPosts     Int? // 動画投稿数
+  videoPosters   Int? // 動画投稿人数
+  videoSales     Int? // 動画経由販売数
+  videoGmv       Int? // 動画売上（GMV）
+  liveCount      Int? // ライブ実施回数
+  livePresenters Int? // ライブ配信人数
+  liveSales      Int? // ライブ配信経由販売数
+  liveGmv        Int? // ライブ売上（GMV）
+  partner        String? // 代理店/パートナー
+  margin         Float? // マージン
+  store          String? // 利用ストア
+  campaignName   String? // キャンペーン名
+  startDate      DateTime? // キャンペーン開始
+  endDate        DateTime? // キャンペーン終了
+  createdAt      DateTime  @default(now())
+}
+
+/// 進捗管理（ブランド×商品×週次の動画/ライブ実績トラッキング）
+model WeeklyProgress {
+  id             String   @id @default(cuid())
+  brand          String // ブランド
+  productSku     String? // 商品名/SKU
+  weekLabel      String // 週（例: 6/29週）
+  targetCount    Int? // 目標数
+  videoPosts     Int? // 動画投稿数
+  videoPosters   Int? // 動画投稿人数
+  videoSales     Int? // 動画経由販売数
+  videoGmv       Int? // 動画売上（GMV）
+  liveCount      Int? // ライブ実施回数
+  livePresenters Int? // ライブ配信人数
+  liveSales      Int? // ライブ配信経由販売数
+  liveGmv        Int? // ライブ売上（GMV）
+  gapToTarget    Int? // 目標との差分
+  activityNote   String? // 活動記録
+  createdAt      DateTime @default(now())
+
+  @@index([weekLabel])
+}
+
+/// 目標 vs 実績
+model Target {
+  id               String  @id @default(cuid())
+  label            String // フェーズ/期間
+  monthlyGmvTarget Int? // 月間GMV目標
+  sellerTarget     Int? // セラー数目標
+  creatorTarget    Int? // クリエイター数目標
+  productionTarget Int? // 制作本数目標
+}
