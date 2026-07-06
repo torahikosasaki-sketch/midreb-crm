@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { weightedRevenue, formatYen, BUSINESS_TYPES } from "@/lib/enums";
+import { formatYen, BUSINESS_TYPES, PRE_CONTRACT_PHASES, linesAcv } from "@/lib/enums";
 import { MonthlyChart, type MonthRow } from "@/components/MonthlyChart";
 
 export const dynamic = "force-dynamic";
@@ -10,15 +10,16 @@ function monthKey(d: Date | null): string {
 }
 
 export default async function PipelinePage() {
+  // 締結前の商談を、受注予定日の月 × 事業区分で加重ACV集計
   const deals = await prisma.deal.findMany({
-    where: { phase: { notIn: ["失注", "保留"] } },
+    where: { phase: { in: PRE_CONTRACT_PHASES as string[] } },
+    include: { lineItems: true },
   });
 
-  // 月 × 事業区分 で加重売上を集計
   const map = new Map<string, Record<string, number>>();
   for (const d of deals) {
     const key = monthKey(d.expectedCloseDate);
-    const w = weightedRevenue(d.expectedRevenue, d.probability);
+    const w = Math.round(linesAcv(d.lineItems) * d.probability);
     const row = map.get(key) ?? {};
     row[d.businessType] = (row[d.businessType] ?? 0) + w;
     map.set(key, row);
@@ -39,7 +40,7 @@ export default async function PipelinePage() {
   });
 
   const grandTotal = deals.reduce(
-    (s, d) => s + weightedRevenue(d.expectedRevenue, d.probability),
+    (s, d) => s + Math.round(linesAcv(d.lineItems) * d.probability),
     0
   );
 
@@ -53,12 +54,12 @@ export default async function PipelinePage() {
       <div className="flex items-baseline justify-between mb-4">
         <h1 className="text-xl font-bold">月次パイプライン集計</h1>
         <div className="text-sm">
-          <span className="text-slate-500">加重売上合計</span>
+          <span className="text-slate-500">加重ACV合計</span>
           <span className="ml-2 text-xl font-bold text-emerald-700">{formatYen(grandTotal)}</span>
         </div>
       </div>
       <p className="text-xs text-slate-400 mb-4">
-        受注予定日の月 × 事業区分で集計（失注・保留を除く）。受注予定日未設定は「未定」。
+        締結前の商談を、受注予定日の月 × 事業区分で加重ACV集計。受注予定日未設定は「未定」。
       </p>
 
       <div className="rounded-lg border border-slate-200 bg-white p-4 mb-6">

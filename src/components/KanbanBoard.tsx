@@ -13,7 +13,7 @@ import {
   type DragStartEvent,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { PHASES, PHASE_COLORS, formatYen, parseServices, type Phase } from "@/lib/enums";
+import { KANBAN_PHASES, PHASE_COLORS, formatYen, type Phase } from "@/lib/enums";
 import { moveDeal } from "@/lib/actions/deals";
 import type { DealCard } from "@/lib/types";
 
@@ -21,7 +21,7 @@ type Grouped = Record<string, DealCard[]>;
 
 function group(deals: DealCard[]): Grouped {
   const g: Grouped = {};
-  for (const p of PHASES) g[p] = [];
+  for (const p of KANBAN_PHASES) g[p] = [];
   for (const d of deals) {
     (g[d.phase] ??= []).push(d);
   }
@@ -78,17 +78,17 @@ export function KanbanBoard({ deals }: { deals: DealCard[] }) {
 
   const grandTotal = allCards
     .filter((d) => d.phase !== "失注" && d.phase !== "保留")
-    .reduce((s, d) => s + d.weightedRevenue, 0);
+    .reduce((s, d) => s + d.weightedAcv, 0);
 
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="flex items-center justify-between px-6 py-3 border-b border-slate-200 bg-white">
         <div className="flex items-baseline gap-2">
-          <span className="text-sm text-slate-500">パイプライン加重売上合計</span>
+          <span className="text-sm text-slate-500">パイプライン加重ACV合計</span>
           <span className="text-2xl font-bold text-emerald-700 tabular-nums">
             {formatYen(grandTotal)}
           </span>
-          <span className="text-xs text-slate-400">（失注・保留を除く / 月間）</span>
+          <span className="text-xs text-slate-400">（失注・保留を除く / 年換算）</span>
         </div>
         <Link
           href="/deals/new"
@@ -107,7 +107,7 @@ export function KanbanBoard({ deals }: { deals: DealCard[] }) {
         >
           <div className="flex-1 min-h-0 overflow-x-auto thin-scroll">
             <div className="flex gap-3 p-4 h-full min-w-max">
-              {PHASES.map((phase) => (
+              {KANBAN_PHASES.map((phase) => (
                 <Column key={phase} phase={phase} cards={grouped[phase] ?? []} draggable />
               ))}
             </div>
@@ -119,7 +119,7 @@ export function KanbanBoard({ deals }: { deals: DealCard[] }) {
       ) : (
         <div className="flex-1 min-h-0 overflow-x-auto thin-scroll">
           <div className="flex gap-3 p-4 h-full min-w-max">
-            {PHASES.map((phase) => (
+            {KANBAN_PHASES.map((phase) => (
               <Column key={phase} phase={phase} cards={grouped[phase] ?? []} />
             ))}
           </div>
@@ -139,7 +139,7 @@ function Column({
   draggable?: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: phase, disabled: !draggable });
-  const total = cards.reduce((s, c) => s + c.weightedRevenue, 0);
+  const total = cards.reduce((s, c) => s + c.weightedAcv, 0);
   return (
     <div className="flex w-72 shrink-0 flex-col rounded-lg bg-slate-100">
       <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-200">
@@ -203,19 +203,22 @@ function CardBody({ card, overlay }: { card: DealCard; overlay?: boolean }) {
           {card.businessType}
         </span>
       </div>
-      {card.services && (
-        <div className="mt-1.5 flex flex-wrap gap-1">
-          {parseServices(card.services).slice(0, 3).map((s) => (
-            <span key={s} className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] text-emerald-700">
-              {s}
-            </span>
-          ))}
-        </div>
-      )}
+      <div className="mt-2 flex items-center gap-2 text-[11px]">
+        {card.mrr > 0 && (
+          <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-emerald-700">
+            月額 {formatYen(card.mrr)}
+          </span>
+        )}
+        {card.oneTime > 0 && (
+          <span className="rounded bg-amber-50 px-1.5 py-0.5 text-amber-700">
+            単発 {formatYen(card.oneTime)}
+          </span>
+        )}
+      </div>
       <div className="mt-2 flex items-center justify-between text-xs">
         <span className="text-slate-500">確度 {Math.round(card.probability * 100)}%</span>
-        <span className="font-semibold text-slate-800 tabular-nums">
-          {formatYen(card.weightedRevenue)}
+        <span className="font-semibold text-slate-800 tabular-nums" title="加重ACV">
+          {formatYen(card.weightedAcv)}
         </span>
       </div>
       <div className="mt-1 flex items-center justify-between text-[11px] text-slate-400">

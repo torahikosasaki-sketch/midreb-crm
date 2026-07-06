@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { weightedRevenue } from "@/lib/enums";
+import { linesMrr, linesOneTime, linesAcv, KANBAN_PHASES } from "@/lib/enums";
 import { KanbanBoard } from "@/components/KanbanBoard";
 import { Filters } from "@/components/Filters";
 import type { DealCard } from "@/lib/types";
@@ -13,29 +13,37 @@ export default async function HomePage({
 }) {
   const sp = await searchParams;
 
+  // カンバンは締結前の商談＋受注(契約)/保留/失注のみ。運用中などの契約後は顧客側で管理。
   const deals = await prisma.deal.findMany({
     where: {
+      phase: { in: KANBAN_PHASES as string[] },
       ...(sp.businessType ? { businessType: sp.businessType } : {}),
       ...(sp.owner ? { owner: sp.owner } : {}),
     },
-    include: { account: { select: { name: true } } },
+    include: { account: { select: { name: true } }, lineItems: true },
     orderBy: { position: "asc" },
   });
 
-  const cards: DealCard[] = deals.map((d) => ({
-    id: d.id,
-    accountName: d.account?.name ?? null,
-    businessType: d.businessType,
-    phase: d.phase,
-    probability: d.probability,
-    expectedRevenue: d.expectedRevenue,
-    weightedRevenue: weightedRevenue(d.expectedRevenue, d.probability),
-    owner: d.owner,
-    services: d.services,
-    expectedCloseDate: d.expectedCloseDate?.toISOString() ?? null,
-    nextActionDate: d.nextActionDate?.toISOString() ?? null,
-    position: d.position,
-  }));
+  const cards: DealCard[] = deals.map((d) => {
+    const mrr = linesMrr(d.lineItems);
+    const oneTime = linesOneTime(d.lineItems);
+    const acv = linesAcv(d.lineItems);
+    return {
+      id: d.id,
+      accountName: d.account?.name ?? null,
+      businessType: d.businessType,
+      phase: d.phase,
+      probability: d.probability,
+      mrr,
+      oneTime,
+      acv,
+      weightedAcv: Math.round(acv * d.probability),
+      owner: d.owner,
+      expectedCloseDate: d.expectedCloseDate?.toISOString() ?? null,
+      nextActionDate: d.nextActionDate?.toISOString() ?? null,
+      position: d.position,
+    };
+  });
 
   const ownerRows = await prisma.deal.findMany({
     where: { owner: { not: null } },

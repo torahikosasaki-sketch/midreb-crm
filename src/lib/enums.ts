@@ -33,6 +33,59 @@ export const ACTIVE_PHASES: Phase[] = [
   "運用中",
 ];
 
+/** 締結前（商談パイプライン）フェーズ */
+export const PRE_CONTRACT_PHASES: Phase[] = ["初回接触", "提案", "条件調整"];
+
+/** 締結後（顧客の契約）フェーズ */
+export const POST_CONTRACT_PHASES: Phase[] = ["契約", "オンボーディング", "運用中"];
+
+/** カンバン（商談）に表示するフェーズ列。オンボーディング/運用中は顧客側で管理 */
+export const KANBAN_PHASES: Phase[] = [
+  "初回接触",
+  "提案",
+  "条件調整",
+  "契約",
+  "保留",
+  "失注",
+];
+
+/** 契約締結後（＝顧客の契約）か */
+export function isContracted(phase: string): boolean {
+  return (POST_CONTRACT_PHASES as string[]).includes(phase);
+}
+
+/** 課金タイプ */
+export const BILLING_TYPES = ["月次定額", "単発"] as const;
+export type BillingType = (typeof BILLING_TYPES)[number];
+
+/** 明細（契約）状態 */
+export const LINE_STATUSES = ["契約中", "解約"] as const;
+
+/** 明細の集計に使う最小形 */
+export type LineLike = {
+  billingType: string;
+  amount: number;
+  quantity: number;
+  status?: string | null;
+};
+
+const isRecurring = (l: LineLike) => l.billingType === "月次定額";
+const isActive = (l: LineLike) => (l.status ?? "契約中") !== "解約";
+const sub = (l: LineLike) => l.amount * (l.quantity ?? 1);
+
+/** 月額合計(MRR): 契約中の月次定額のみ */
+export function linesMrr(lines: LineLike[]): number {
+  return lines.filter((l) => isRecurring(l) && isActive(l)).reduce((s, l) => s + sub(l), 0);
+}
+/** 単発合計 */
+export function linesOneTime(lines: LineLike[]): number {
+  return lines.filter((l) => !isRecurring(l)).reduce((s, l) => s + sub(l), 0);
+}
+/** 想定ACV(年換算) = 単発合計 + 月額合計×12 */
+export function linesAcv(lines: LineLike[]): number {
+  return linesOneTime(lines) + linesMrr(lines) * 12;
+}
+
 /** フェーズごとの確度デフォルト（手入力で上書き可） */
 export const PHASE_DEFAULT_PROBABILITY: Record<Phase, number> = {
   初回接触: 0.1,
@@ -86,22 +139,8 @@ export const SHIP_STATUSES = ["未出荷", "出荷準備中", "出荷済"] as co
 
 export const RETURN_METHODS = ["現金還元", "マーケ予算転用"] as const;
 
-/** 加重売上 = 想定売上 × 確度 */
-export function weightedRevenue(expectedRevenue: number, probability: number): number {
-  return Math.round(expectedRevenue * probability);
-}
-
 /** 円フォーマット（¥1,234,567） */
 export function formatYen(n: number | null | undefined): string {
   if (n == null) return "¥0";
   return "¥" + Math.round(n).toLocaleString("ja-JP");
-}
-
-/** 提供サービス文字列をタグ配列に */
-export function parseServices(services: string | null | undefined): string[] {
-  if (!services) return [];
-  return services
-    .split(/[,、]/)
-    .map((s) => s.trim())
-    .filter(Boolean);
 }

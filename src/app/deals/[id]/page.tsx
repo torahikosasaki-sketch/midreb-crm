@@ -5,7 +5,8 @@ import { updateDeal, deleteDeal } from "@/lib/actions/deals";
 import { DealForm, type DealInitial } from "@/components/DealForm";
 import { DeleteButton } from "@/components/DeleteButton";
 import { ActivityLog } from "@/components/ActivityLog";
-import { weightedRevenue, formatYen } from "@/lib/enums";
+import { LineItemEditor, type LineItem } from "@/components/LineItemEditor";
+import { formatYen, linesMrr, linesOneTime, linesAcv, isContracted } from "@/lib/enums";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,7 @@ export default async function DealDetailPage({
     include: {
       account: true,
       activities: { orderBy: { occurredAt: "desc" } },
+      lineItems: { orderBy: { position: "asc" } },
     },
   });
   if (!deal) notFound();
@@ -33,6 +35,17 @@ export default async function DealDetailPage({
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
+
+  const lineItems: LineItem[] = deal.lineItems.map((l) => ({
+    id: l.id,
+    name: l.name,
+    billingType: l.billingType,
+    amount: l.amount,
+    quantity: l.quantity,
+    contractStart: ymd(l.contractStart),
+    contractEnd: ymd(l.contractEnd),
+    status: l.status,
+  }));
 
   const activities = deal.activities.map((a) => ({
     id: a.id,
@@ -47,8 +60,6 @@ export default async function DealDetailPage({
     businessType: deal.businessType,
     phase: deal.phase,
     probability: deal.probability,
-    services: deal.services,
-    expectedRevenue: deal.expectedRevenue,
     inflowChannel: deal.inflowChannel,
     agencyName: deal.agencyName,
     owner: deal.owner,
@@ -62,27 +73,44 @@ export default async function DealDetailPage({
     memo: deal.memo,
   };
 
-  const weighted = weightedRevenue(deal.expectedRevenue, deal.probability);
+  const mrr = linesMrr(lineItems);
+  const oneTime = linesOneTime(lineItems);
+  const acv = linesAcv(lineItems);
+  const contracted = isContracted(deal.phase);
 
   return (
-    <div className="p-6 max-w-3xl">
+    <div className="p-6 max-w-4xl">
       <div className="mb-4 flex items-start justify-between">
         <div>
           <Link href="/deals" className="text-sm text-emerald-600 hover:underline">
             ← 商談一覧
           </Link>
-          <h1 className="text-xl font-bold mt-1">
-            {deal.account?.name ?? "(顧客未設定)"}
-          </h1>
+          <div className="flex items-center gap-2 mt-1">
+            <h1 className="text-xl font-bold">{deal.account?.name ?? "(顧客未設定)"}</h1>
+            <span
+              className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                contracted ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
+              }`}
+            >
+              {contracted ? "契約（顧客）" : "商談（締結前）"}
+            </span>
+          </div>
           <p className="text-sm text-slate-500">
-            {deal.businessType} ・ {deal.phase} ・ 確度 {Math.round(deal.probability * 100)}% ・ 加重売上{" "}
-            <span className="font-semibold text-emerald-700">{formatYen(weighted)}</span>
+            {deal.businessType} ・ {deal.phase} ・ 確度 {Math.round(deal.probability * 100)}% ・ 月額{" "}
+            <span className="font-semibold text-emerald-700">{formatYen(mrr)}</span> ・ 単発{" "}
+            <span className="font-semibold text-slate-700">{formatYen(oneTime)}</span> ・ ACV{" "}
+            <span className="font-semibold text-emerald-700">{formatYen(acv)}</span>
           </p>
         </div>
-        <DeleteButton action={deleteDeal.bind(null, id)} label="商談を削除" />
+        <DeleteButton action={deleteDeal.bind(null, id)} label="削除" />
       </div>
 
-      <h2 className="text-sm font-semibold text-slate-700 mb-2">商談情報</h2>
+      <section className="mb-8">
+        <h2 className="text-sm font-semibold text-slate-700 mb-2">契約明細（提供サービス・課金）</h2>
+        <LineItemEditor dealId={id} lineItems={lineItems} />
+      </section>
+
+      <h2 className="text-sm font-semibold text-slate-700 mb-2">案件情報</h2>
       <DealForm
         action={updateDeal.bind(null, id)}
         accounts={accounts}

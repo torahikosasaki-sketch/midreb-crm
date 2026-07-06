@@ -1,19 +1,17 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import {
-  weightedRevenue,
   formatYen,
   BUSINESS_TYPES,
-  ACTIVE_PHASES,
+  PRE_CONTRACT_PHASES,
   PHASE_COLORS,
+  linesMrr,
+  linesOneTime,
+  linesAcv,
+  isContracted,
   type Phase,
 } from "@/lib/enums";
-import {
-  PhaseFunnel,
-  BizPie,
-  MonthlyBars,
-  OwnerBars,
-} from "@/components/DashboardCharts";
+import { PhaseFunnel, BizPie, MonthlyBars, OwnerBars } from "@/components/DashboardCharts";
 
 export const dynamic = "force-dynamic";
 
@@ -29,117 +27,127 @@ function monthKey(d: Date | null): string {
 
 export default async function DashboardPage() {
   const [deals, accountCount, target] = await Promise.all([
-    prisma.deal.findMany({ include: { account: { select: { name: true } } } }),
+    prisma.deal.findMany({ include: { account: { select: { name: true } }, lineItems: true } }),
     prisma.account.count(),
     prisma.target.findFirst({ orderBy: { label: "asc" } }),
   ]);
 
-  const isActive = (p: string) => p !== "失注" && p !== "保留";
-  const active = deals.filter((d) => isActive(d.phase));
-  const w = (d: { expectedRevenue: number; probability: number }) =>
-    weightedRevenue(d.expectedRevenue, d.probability);
-
-  // KPI
-  const pipelineWeighted = active.reduce((s, d) => s + w(d), 0);
-  const expectedTotal = active.reduce((s, d) => s + d.expectedRevenue, 0);
-  const runningGmv = deals
-    .filter((d) => d.phase === "運用中")
-    .reduce((s, d) => s + d.expectedRevenue, 0);
-  const today = startOfToday();
-  const overdue = active.filter(
-    (d) => d.nextActionDate && d.nextActionDate < today
-  ).length;
-  const wonCount = deals.filter((d) => d.phase === "契約" || d.phase === "運用中").length;
-
-  // フェーズ別ファネル
-  const phaseData = ACTIVE_PHASES.map((p) => {
-    const rows = deals.filter((d) => d.phase === p);
+  const fin = deals.map((d) => {
+    const mrr = linesMrr(d.lineItems);
+    const oneTime = linesOneTime(d.lineItems);
+    const acv = linesAcv(d.lineItems);
     return {
-      phase: p,
-      count: rows.length,
-      weighted: rows.reduce((s, d) => s + w(d), 0),
+      d,
+      mrr,
+      oneTime,
+      acv,
+      weightedAcv: Math.round(acv * d.probability),
+      contracted: isContracted(d.phase),
     };
   });
 
-  // 事業区分別
+  const contracted = fin.filter((f) => f.contracted);
+  const pipeline = fin.filter(
+    (f) => !f.contracted && f.d.phase !== "失注" && f.d.phase !== "保留"
+  );
+
+  // KPI
+  const currentMrr = contracted.reduce((s, f) => s + f.mrr, 0);
+  const oneTimeWon = contracted.reduce((s, f) => s + f.oneTime, 0);
+  const pipelineWeighted = pipeline.reduce((s, f) => s + f.weightedAcv, 0);
+  const churnMrr = contracted.reduce(
+    (s, f) =>
+      s +
+      f.d.lineItems
+        .filter((l) => l.billingType === "月次定額" && l.status === "解約")
+        .reduce((a, l) => a + l.amount * l.quantity, 0),
+    0
+  );
+  const today = startOfToday();
+  const overdue = pipeline.filter((f) => f.d.nextActionDate && f.d.nextActionDate < today).length;
+
+  // フェーズ別ファネル（締結前）
+  const phaseData = PRE_CONTRACT_PHASES.map((p) => {
+    const rows = pipeline.filter((f) => f.d.phase === p);
+    return { phase: p, count: rows.length, weighted: rows.reduce((s, f) => s + f.weightedAcv, 0) };
+  });
+
+  // 事業区分別 現MRR構成（契約後）
   const bizData = BUSINESS_TYPES.map((b) => ({
     name: b,
-    value: active.filter((d) => d.businessType === b).reduce((s, d) => s + w(d), 0),
+    value: contracted.filter((f) => f.d.businessType === b).reduce((s, f) => s + f.mrr, 0),
   }));
 
-  // 月次見込み
+  // 月次見込み（締結前・受注予定日別 加重ACV）
   const monthMap = new Map<string, number>();
-  for (const d of active) {
-    const k = monthKey(d.expectedCloseDate);
-    monthMap.set(k, (monthMap.get(k) ?? 0) + w(d));
+  for (const f of pipeline) {
+    const k = monthKey(f.d.expectedCloseDate);
+    monthMap.set(k, (monthMap.get(k) ?? 0) + f.weightedAcv);
   }
   const monthData = [...monthMap.entries()]
     .sort((a, b) => (a[0] === "未定" ? 1 : b[0] === "未定" ? -1 : a[0].localeCompare(b[0])))
     .map(([month, weighted]) => ({ month, weighted }));
 
-  // 担当者別（上位8）
+  // 担当者別（締結前 加重ACV 上位8）
   const ownerMap = new Map<string, number>();
-  for (const d of active) {
-    const o = d.owner ?? "未割当";
-    ownerMap.set(o, (ownerMap.get(o) ?? 0) + w(d));
+  for (const f of pipeline) {
+    const o = f.d.owner ?? "未割当";
+    ownerMap.set(o, (ownerMap.get(o) ?? 0) + f.weightedAcv);
   }
   const ownerData = [...ownerMap.entries()]
     .map(([owner, weighted]) => ({ owner, weighted }))
     .sort((a, b) => b.weighted - a.weighted)
     .slice(0, 8);
 
-  // 目標達成率（フェーズ1のGMV目標 vs 運用中GMV）
+  // 目標達成率（月間GMV目標 vs 現MRR）
   const gmvTarget = target?.monthlyGmvTarget ?? null;
-  const gmvPct = gmvTarget ? Math.min(100, Math.round((runningGmv / gmvTarget) * 100)) : null;
+  const gmvPct = gmvTarget ? Math.min(100, Math.round((currentMrr / gmvTarget) * 100)) : null;
 
-  // 直近の要対応（次回アクション昇順 上位6）
-  const upcoming = active
-    .filter((d) => d.nextActionDate)
-    .sort((a, b) => a.nextActionDate!.getTime() - b.nextActionDate!.getTime())
+  // 直近の要対応
+  const upcoming = pipeline
+    .filter((f) => f.d.nextActionDate)
+    .sort((a, b) => a.d.nextActionDate!.getTime() - b.d.nextActionDate!.getTime())
     .slice(0, 6);
 
   return (
     <div className="p-6 max-w-6xl">
       <div className="flex items-baseline justify-between mb-5">
         <h1 className="text-xl font-bold">ダッシュボード</h1>
-        <span className="text-xs text-slate-400">失注・保留を除く進行中商談ベース</span>
+        <span className="text-xs text-slate-400">MRR＝契約後の月額経常／パイプライン＝締結前の加重ACV</span>
       </div>
 
-      {/* KPI カード */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
-        <Kpi label="パイプライン加重売上" value={formatYen(pipelineWeighted)} accent />
-        <Kpi label="想定売上合計" value={formatYen(expectedTotal)} />
-        <Kpi label="進行中商談" value={`${active.length} 件`} />
-        <Kpi label="運用中GMV(月間)" value={formatYen(runningGmv)} />
-        <Kpi label="受注/運用中" value={`${wonCount} 件`} />
-        <Kpi label="アクション遅延" value={`${overdue} 件`} danger={overdue > 0} />
+        <Kpi label="現MRR（月額経常）" value={formatYen(currentMrr)} accent />
+        <Kpi label="ARR（年換算）" value={formatYen(currentMrr * 12)} />
+        <Kpi label="単発売上(受注済)" value={formatYen(oneTimeWon)} />
+        <Kpi label="パイプライン加重ACV" value={formatYen(pipelineWeighted)} />
+        <Kpi label="進行中商談" value={`${pipeline.length} 件`} />
+        <Kpi label="解約MRR" value={formatYen(churnMrr)} danger={churnMrr > 0} />
       </div>
 
-      {/* チャートグリッド */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-        <Card title="フェーズ別 加重売上（ファネル）">
+        <Card title="フェーズ別 加重ACV（締結前ファネル）">
           <PhaseFunnel data={phaseData} />
         </Card>
-        <Card title="事業区分別 加重売上 構成比">
+        <Card title="事業区分別 現MRR 構成比">
           <BizPie data={bizData} />
         </Card>
-        <Card title="月次見込み（受注予定日別 加重売上）" href="/pipeline" linkLabel="月次集計の詳細 →">
+        <Card title="月次見込み（受注予定日別 加重ACV）" href="/pipeline" linkLabel="月次集計の詳細 →">
           <MonthlyBars data={monthData} />
         </Card>
-        <Card title="担当者別 加重売上（上位8）">
+        <Card title="担当者別 加重ACV（上位8）">
           <OwnerBars data={ownerData} />
         </Card>
       </div>
 
-      {/* 下段: 目標達成・要対応 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card title="目標達成率（運用中GMV）" href="/targets" linkLabel="目標 vs 実績の詳細 →">
+        <Card title="目標達成率（現MRR）" href="/targets" linkLabel="目標 vs 実績の詳細 →">
           {gmvTarget ? (
             <div>
               <div className="flex items-baseline justify-between text-sm mb-1">
                 <span className="text-slate-500">{target?.label}</span>
                 <span className="tabular-nums">
-                  <span className="font-bold text-slate-800">{formatYen(runningGmv)}</span>
+                  <span className="font-bold text-slate-800">{formatYen(currentMrr)}</span>
                   <span className="text-slate-400"> / {formatYen(gmvTarget)}</span>
                   <span className="ml-1 text-emerald-600">({gmvPct}%)</span>
                 </span>
@@ -156,7 +164,7 @@ export default async function DashboardPage() {
           )}
           <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
             <Mini label="顧客企業" value={`${accountCount} 社`} />
-            <Mini label="進行中商談" value={`${active.length} 件`} />
+            <Mini label="契約数" value={`${contracted.length} 件`} />
           </div>
         </Card>
 
@@ -165,19 +173,19 @@ export default async function DashboardPage() {
             <p className="text-sm text-slate-400">予定なし</p>
           ) : (
             <div className="divide-y divide-slate-100">
-              {upcoming.map((d) => {
-                const overdueRow = d.nextActionDate! < today;
+              {upcoming.map((f) => {
+                const overdueRow = f.d.nextActionDate! < today;
                 return (
                   <Link
-                    key={d.id}
-                    href={`/deals/${d.id}`}
+                    key={f.d.id}
+                    href={`/deals/${f.d.id}`}
                     className="flex items-center gap-2 py-2 text-sm hover:bg-slate-50 -mx-2 px-2 rounded"
                   >
-                    <span className={`h-2 w-2 rounded-full ${PHASE_COLORS[d.phase as Phase] ?? "bg-slate-300"}`} />
-                    <span className="truncate flex-1">{d.account?.name ?? "(未設定)"}</span>
-                    <span className="text-xs text-slate-400">{d.owner ?? "—"}</span>
+                    <span className={`h-2 w-2 rounded-full ${PHASE_COLORS[f.d.phase as Phase] ?? "bg-slate-300"}`} />
+                    <span className="truncate flex-1">{f.d.account?.name ?? "(未設定)"}</span>
+                    <span className="text-xs text-slate-400">{f.d.owner ?? "—"}</span>
                     <span className={`text-xs ${overdueRow ? "text-rose-600 font-medium" : "text-slate-400"}`}>
-                      {d.nextActionDate!.toISOString().slice(5, 10).replace("-", "/")}
+                      {f.d.nextActionDate!.toISOString().slice(5, 10).replace("-", "/")}
                     </span>
                   </Link>
                 );

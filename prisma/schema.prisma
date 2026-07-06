@@ -42,8 +42,6 @@ model Deal {
   businessType       String // 事業区分
   phase              String       @default("初回接触") // フェーズ
   probability        Float        @default(0) // 確度 (0-1)
-  services           String? // 提供サービス (カンマ区切り)
-  expectedRevenue    Int          @default(0) // 想定売上(円)
   inflowChannel      String? // 流入経路
   agencyName         String? // 代理店名
   owner              String? // 担当者
@@ -59,10 +57,30 @@ model Deal {
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
   activities         Activity[]
+  lineItems          DealLineItem[]
 
   @@index([phase])
   @@index([businessType])
   @@index([accountId])
+}
+
+/// 案件明細（サービス単位の課金。月次定額/単発、契約期間・解約を保持）
+model DealLineItem {
+  id            String    @id @default(cuid())
+  deal          Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  dealId        String
+  name          String // サービス名/品目
+  billingType   String    @default("単発") // 月次定額 / 単発
+  amount        Int       @default(0) // 単価（月次定額=月額 / 単発=総額）
+  quantity      Int       @default(1) // 数量
+  contractStart DateTime? // 契約開始日（月次定額）
+  contractEnd   DateTime? // 更新予定日（月次定額）
+  status        String    @default("契約中") // 契約中 / 解約（月次定額）
+  churnDate     DateTime? // 解約日
+  position      Int       @default(0) // 行の並び順
+  createdAt     DateTime  @default(now())
+
+  @@index([dealId])
 }
 
 /// 活動ログ（架電・MTG・提案送付などの行動履歴）

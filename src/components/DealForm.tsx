@@ -8,7 +8,6 @@ import {
   CONTRACT_STATUSES,
   CONTRACT_TYPES,
   PHASE_DEFAULT_PROBABILITY,
-  formatYen,
   type Phase,
 } from "@/lib/enums";
 import { Field, TextInput, TextArea, Select, Button } from "@/components/ui";
@@ -20,8 +19,6 @@ export type DealInitial = {
   businessType: string;
   phase: string;
   probability: number;
-  services: string | null;
-  expectedRevenue: number;
   inflowChannel: string | null;
   agencyName: string | null;
   owner: string | null;
@@ -49,9 +46,6 @@ export function DealForm({
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>((initial?.phase as Phase) ?? "初回接触");
   const [probability, setProbability] = useState<number>(initial?.probability ?? 0.1);
-  const [gmv, setGmv] = useState<number>(initial?.expectedRevenue ?? 0);
-
-  const weighted = Math.round(gmv * probability);
 
   return (
     <form action={action} className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl">
@@ -97,27 +91,6 @@ export function DealForm({
           value={probability}
           onChange={(e) => setProbability(Number(e.target.value))}
         />
-      </Field>
-
-      <Field label="想定売上 (円)">
-        <TextInput
-          name="expectedRevenue"
-          type="number"
-          min="0"
-          value={gmv}
-          onChange={(e) => setGmv(Number(e.target.value))}
-        />
-      </Field>
-
-      <div className="flex flex-col gap-1 text-sm justify-end">
-        <span className="text-slate-600 font-medium">加重売上（自動）</span>
-        <div className="rounded-md bg-slate-100 px-3 py-2 font-semibold text-emerald-700 tabular-nums">
-          {formatYen(weighted)}
-        </div>
-      </div>
-
-      <Field label="提供サービス（カンマ区切り）">
-        <TextInput name="services" defaultValue={initial?.services ?? ""} placeholder="TTS運用, 動画" />
       </Field>
 
       <Field label="流入経路">

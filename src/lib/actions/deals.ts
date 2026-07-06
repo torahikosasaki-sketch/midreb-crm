@@ -22,8 +22,6 @@ function dealDataFromForm(fd: FormData) {
     businessType: str(fd, "businessType") ?? "storeb",
     phase: str(fd, "phase") ?? "初回接触",
     probability: Number(str(fd, "probability") ?? "0"),
-    services: str(fd, "services"),
-    expectedRevenue: Number(str(fd, "expectedRevenue") ?? "0"),
     inflowChannel: str(fd, "inflowChannel"),
     agencyName: str(fd, "agencyName"),
     owner: str(fd, "owner"),

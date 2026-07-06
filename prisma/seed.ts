@@ -19,6 +19,7 @@ async function main() {
   );
 
   // 冪等にするため全消去（開発用seed）
+  await prisma.dealLineItem.deleteMany();
   await prisma.activity.deleteMany();
   await prisma.weeklyProgress.deleteMany();
   await prisma.deal.deleteMany();
@@ -63,14 +64,13 @@ async function main() {
     const phase = di === 0 ? "運用中" : String(dl.phase ?? "初回接触");
     const probability = di === 0 ? 1.0 : Number(dl.probability ?? 0);
 
-    await prisma.deal.create({
+    const expected = Number(dl.expectedRevenue ?? 0);
+    const created = await prisma.deal.create({
       data: {
         accountId: accountIdByName.get(String(dl.accountName)) ?? null,
         businessType: String(dl.businessType ?? "storeb"),
         phase,
         probability,
-        services: s(dl.services),
-        expectedRevenue: Number(dl.expectedRevenue ?? 0),
         inflowChannel: s(dl.inflowChannel),
         agencyName: s(dl.agencyName),
         owner,
@@ -85,6 +85,39 @@ async function main() {
         position: pos++,
       },
     });
+
+    // 明細（デモ用）: 月次定額を基本に、一部へ初期費用(単発)を付与。締結後は契約中/一部解約。
+    const contracted = ["契約", "オンボーディング", "運用中"].includes(phase);
+    const monthly = Math.max(50000, Math.round(expected / 12 / 10000) * 10000);
+    const svc = s(dl.services)?.split(/[,、]/)[0]?.trim() || "運用支援";
+    let lpos = 0;
+    await prisma.dealLineItem.create({
+      data: {
+        dealId: created.id,
+        name: svc,
+        billingType: "月次定額",
+        amount: monthly,
+        quantity: 1,
+        contractStart: contracted ? new Date(now.getTime() - 30 * dayMs) : null,
+        contractEnd: contracted ? new Date(now.getTime() + 335 * dayMs) : null,
+        // 運用中の1件だけ解約デモ
+        status: phase === "運用中" && di % 4 === 0 ? "解約" : "契約中",
+        churnDate: phase === "運用中" && di % 4 === 0 ? new Date(now.getTime() - 5 * dayMs) : null,
+        position: lpos++,
+      },
+    });
+    if (di % 3 === 0) {
+      await prisma.dealLineItem.create({
+        data: {
+          dealId: created.id,
+          name: "初期構築費",
+          billingType: "単発",
+          amount: Math.max(100000, Math.round((expected * 0.2) / 10000) * 10000),
+          quantity: 1,
+          position: lpos++,
+        },
+      });
+    }
     di++;
   }
 
@@ -119,8 +152,9 @@ async function main() {
   ];
   for (const t of targets) await prisma.target.create({ data: t });
 
+  const lineCount = await prisma.dealLineItem.count();
   console.log(
-    `seeded: ${data.accounts.length} accounts, ${data.deals.length} deals, ${weekly.length} weeklyProgress, ${targets.length} targets`
+    `seeded: ${data.accounts.length} accounts, ${data.deals.length} deals, ${lineCount} lineItems, ${weekly.length} weeklyProgress, ${targets.length} targets`
   );
 }
 

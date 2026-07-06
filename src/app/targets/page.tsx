@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { formatYen } from "@/lib/enums";
+import { formatYen, linesMrr, POST_CONTRACT_PHASES } from "@/lib/enums";
 import { createTarget, deleteTarget } from "@/lib/actions/targets";
 
 export const dynamic = "force-dynamic";
@@ -39,18 +39,18 @@ function Bar({
 }
 
 export default async function TargetsPage() {
-  const [targets, runningDeals, weekly] = await Promise.all([
+  const [targets, contractedDeals, weekly] = await Promise.all([
     prisma.target.findMany({ orderBy: { label: "asc" } }),
     prisma.deal.findMany({
-      where: { phase: "運用中" },
-      select: { expectedRevenue: true, accountId: true },
+      where: { phase: { in: POST_CONTRACT_PHASES as string[] } },
+      select: { accountId: true, lineItems: true },
     }),
     prisma.weeklyProgress.findMany({ select: { videoPosts: true, videoPosters: true } }),
   ]);
 
-  // 実績（現時点）
-  const gmvActual = runningDeals.reduce((s, d) => s + d.expectedRevenue, 0);
-  const sellerActual = new Set(runningDeals.map((d) => d.accountId).filter(Boolean)).size;
+  // 実績（現時点）: 月間GMV=現MRR、セラー数=契約中の顧客数
+  const gmvActual = contractedDeals.reduce((s, d) => s + linesMrr(d.lineItems), 0);
+  const sellerActual = new Set(contractedDeals.map((d) => d.accountId).filter(Boolean)).size;
   // 案件進捗（週次）から: クリエイター数≈動画投稿人数の延べ、制作本数≈動画投稿数の延べ
   const creatorActual = weekly.reduce((s, w) => s + (w.videoPosters ?? 0), 0);
   const productionActual = weekly.reduce((s, w) => s + (w.videoPosts ?? 0), 0);
@@ -59,7 +59,7 @@ export default async function TargetsPage() {
     <div className="p-6 max-w-4xl">
       <h1 className="text-xl font-bold mb-1">目標 vs 実績</h1>
       <p className="text-xs text-slate-400 mb-5">
-        実績は現時点の集計（月間GMV=運用中商談の想定GMV合計／セラー数=運用中商談の顧客数／クリエイター数=案件進捗の動画投稿人数合計／制作本数=案件進捗の動画投稿数合計）。
+        実績は現時点の集計（月間GMV=現MRR／セラー数=契約中の顧客数／クリエイター数=案件進捗の動画投稿人数合計／制作本数=案件進捗の動画投稿数合計）。
       </p>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">

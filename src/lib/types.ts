@@ -5,10 +5,11 @@ export type DealCard = {
   businessType: string;
   phase: string;
   probability: number;
-  expectedRevenue: number;
-  weightedRevenue: number;
+  mrr: number; // 月額（契約中の月次定額）
+  oneTime: number; // 単発合計
+  acv: number; // 想定ACV(年換算)
+  weightedAcv: number; // ACV × 確度
   owner: string | null;
-  services: string | null;
   expectedCloseDate: string | null;
   nextActionDate: string | null;
   position: number;
