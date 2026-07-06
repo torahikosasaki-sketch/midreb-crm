@@ -86,7 +86,13 @@ export default async function DealDetailPage({
             ← 商談一覧
           </Link>
           <div className="flex items-center gap-2 mt-1">
-            <h1 className="text-xl font-bold">{deal.account?.name ?? "(顧客未設定)"}</h1>
+            {deal.accountId ? (
+              <Link href={`/accounts/${deal.accountId}`} className="text-xl font-bold hover:text-emerald-700 hover:underline">
+                {deal.account?.name ?? "(顧客未設定)"}
+              </Link>
+            ) : (
+              <h1 className="text-xl font-bold">(顧客未設定)</h1>
+            )}
             <span
               className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
                 contracted ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"

@@ -13,40 +13,32 @@ export type AccountRow = {
   owner: string | null;
   mrr: number;
   oneTime: number;
-  pipeline: number;
+  pipeline: number; // 拡大（締結前の商談）加重ACV
   contracts: number;
   activeServices: number;
   churnMrr: number;
-  segment: "契約顧客" | "商談中" | "見込み";
 };
 
-const SEGMENTS = ["すべて", "契約顧客", "商談中", "見込み"] as const;
-type Segment = (typeof SEGMENTS)[number];
 type Sort = "mrr" | "pipeline" | "name";
-
-const SEG_STYLE: Record<AccountRow["segment"], string> = {
-  契約顧客: "bg-emerald-100 text-emerald-700",
-  商談中: "bg-sky-100 text-sky-700",
-  見込み: "bg-slate-100 text-slate-500",
-};
 
 export function AccountsExplorer({ rows }: { rows: AccountRow[] }) {
   const [query, setQuery] = useState("");
-  const [segment, setSegment] = useState<Segment>("すべて");
+  const [biz, setBiz] = useState("");
+  const [churnOnly, setChurnOnly] = useState(false);
   const [sort, setSort] = useState<Sort>("mrr");
 
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { すべて: rows.length, 契約顧客: 0, 商談中: 0, 見込み: 0 };
-    for (const r of rows) c[r.segment]++;
-    return c;
-  }, [rows]);
-
+  const bizTypes = useMemo(
+    () => [...new Set(rows.map((r) => r.businessType).filter(Boolean) as string[])].sort(),
+    [rows]
+  );
   const maxMrr = useMemo(() => Math.max(1, ...rows.map((r) => r.mrr)), [rows]);
+  const churnCount = useMemo(() => rows.filter((r) => r.churnMrr > 0).length, [rows]);
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     let list = rows.filter((r) => {
-      if (segment !== "すべて" && r.segment !== segment) return false;
+      if (biz && r.businessType !== biz) return false;
+      if (churnOnly && r.churnMrr <= 0) return false;
       if (q && !r.name.toLowerCase().includes(q) && !(r.owner ?? "").toLowerCase().includes(q))
         return false;
       return true;
@@ -57,26 +49,12 @@ export function AccountsExplorer({ rows }: { rows: AccountRow[] }) {
       return b.mrr - a.mrr;
     });
     return list;
-  }, [rows, query, segment, sort]);
+  }, [rows, query, biz, churnOnly, sort]);
 
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* ツールバー */}
       <div className="flex flex-wrap items-center gap-2 px-6 py-2.5 border-b border-slate-200 bg-white">
-        <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-0.5">
-          {SEGMENTS.map((s) => (
-            <button
-              key={s}
-              onClick={() => setSegment(s)}
-              className={`rounded-md px-2.5 py-1 text-sm font-medium transition-colors ${
-                segment === s ? "bg-white shadow-sm text-slate-800" : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              {s}
-              <span className="ml-1 text-xs text-slate-400">{counts[s]}</span>
-            </button>
-          ))}
-        </div>
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -84,15 +62,38 @@ export function AccountsExplorer({ rows }: { rows: AccountRow[] }) {
           className="rounded-md border border-slate-300 px-3 py-1.5 text-sm w-56 outline-none focus:border-emerald-500"
         />
         <select
+          value={biz}
+          onChange={(e) => setBiz(e.target.value)}
+          className="rounded-md border border-slate-300 px-2.5 py-1.5 text-sm outline-none focus:border-emerald-500"
+        >
+          <option value="">事業区分（すべて）</option>
+          {bizTypes.map((b) => (
+            <option key={b} value={b}>
+              {b}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={() => setChurnOnly((v) => !v)}
+          className={`rounded-md px-2.5 py-1.5 text-sm font-medium border transition-colors ${
+            churnOnly
+              ? "bg-rose-600 text-white border-rose-600"
+              : "bg-white text-slate-600 border-slate-300 hover:bg-slate-50"
+          }`}
+        >
+          解約リスクのみ
+          <span className={`ml-1 text-xs ${churnOnly ? "text-rose-100" : "text-slate-400"}`}>{churnCount}</span>
+        </button>
+        <select
           value={sort}
           onChange={(e) => setSort(e.target.value as Sort)}
           className="rounded-md border border-slate-300 px-2.5 py-1.5 text-sm outline-none focus:border-emerald-500"
         >
           <option value="mrr">MRR 降順</option>
-          <option value="pipeline">パイプライン 降順</option>
+          <option value="pipeline">拡大パイプライン 降順</option>
           <option value="name">企業名 順</option>
         </select>
-        <span className="ml-auto text-xs text-slate-400">{shown.length} 件表示</span>
+        <span className="ml-auto text-xs text-slate-400">{shown.length} 社</span>
         <Link
           href="/accounts/new"
           className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
@@ -116,9 +117,6 @@ export function AccountsExplorer({ rows }: { rows: AccountRow[] }) {
             <div className="min-w-0 w-64 shrink-0">
               <div className="flex items-center gap-2">
                 <span className="font-semibold truncate">{r.name}</span>
-                <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${SEG_STYLE[r.segment]}`}>
-                  {r.segment}
-                </span>
                 {r.churnMrr > 0 && (
                   <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-medium text-rose-600">
                     解約あり
@@ -139,11 +137,9 @@ export function AccountsExplorer({ rows }: { rows: AccountRow[] }) {
                 <span className="font-bold text-emerald-700 tabular-nums">
                   {r.mrr > 0 ? formatYen(r.mrr) : "—"}
                 </span>
-                {r.contracts > 0 && (
-                  <span className="text-[11px] text-slate-400">
-                    契約 {r.contracts}・サービス {r.activeServices}
-                  </span>
-                )}
+                <span className="text-[11px] text-slate-400">
+                  契約 {r.contracts}・サービス {r.activeServices}
+                </span>
               </div>
               <div className="mt-1 h-1.5 w-full max-w-xs rounded-full bg-slate-100 overflow-hidden">
                 <div
@@ -153,10 +149,10 @@ export function AccountsExplorer({ rows }: { rows: AccountRow[] }) {
               </div>
             </div>
 
-            {/* 右: 単発 / パイプライン / 担当 */}
+            {/* 右: 単発 / 拡大パイプライン / 担当 */}
             <div className="hidden md:flex items-center gap-6 text-right shrink-0">
               <Metric label="単発(受注済)" value={r.oneTime > 0 ? formatYen(r.oneTime) : "—"} />
-              <Metric label="商談パイプライン" value={r.pipeline > 0 ? formatYen(r.pipeline) : "—"} />
+              <Metric label="拡大パイプライン" value={r.pipeline > 0 ? formatYen(r.pipeline) : "—"} />
               <div className="w-16">
                 <div className="text-[10px] text-slate-400">担当</div>
                 <div className="text-sm text-slate-600 truncate">{r.owner ?? "—"}</div>
