@@ -1,99 +1,106 @@
-import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatYen, linesMrr, linesOneTime, linesAcv, isContracted } from "@/lib/enums";
+import { AccountsExplorer, type AccountRow } from "@/components/AccountsExplorer";
 
 export const dynamic = "force-dynamic";
 
 export default async function AccountsPage() {
   const accounts = await prisma.account.findMany({
-    include: {
-      deals: {
-        select: { phase: true, probability: true, lineItems: true },
-      },
-    },
+    include: { deals: { include: { lineItems: true } } },
     orderBy: { name: "asc" },
   });
 
-  const rows = accounts.map((a) => {
+  const rows: AccountRow[] = accounts.map((a) => {
     let mrr = 0;
     let oneTime = 0;
     let pipeline = 0;
     let contracts = 0;
+    let activeServices = 0;
+    let churnMrr = 0;
+    let hasOpen = false;
+
     for (const d of a.deals) {
       if (isContracted(d.phase)) {
         mrr += linesMrr(d.lineItems);
         oneTime += linesOneTime(d.lineItems);
         contracts += 1;
+        for (const l of d.lineItems) {
+          if (l.billingType === "月次定額") {
+            if (l.status === "解約") churnMrr += l.amount * l.quantity;
+            else activeServices += 1;
+          }
+        }
       } else if (d.phase !== "失注" && d.phase !== "保留") {
+        hasOpen = true;
         pipeline += Math.round(linesAcv(d.lineItems) * d.probability);
       }
     }
-    return { a, mrr, oneTime, pipeline, contracts };
+
+    const segment: AccountRow["segment"] =
+      contracts > 0 ? "契約顧客" : hasOpen ? "商談中" : "見込み";
+
+    return {
+      id: a.id,
+      name: a.name,
+      businessType: a.businessType,
+      industry: a.industry,
+      region: a.region,
+      owner: a.owner,
+      mrr,
+      oneTime,
+      pipeline,
+      contracts,
+      activeServices,
+      churnMrr,
+      segment,
+    };
   });
 
   const totalMrr = rows.reduce((s, r) => s + r.mrr, 0);
+  const totalOneTime = rows.reduce((s, r) => s + r.oneTime, 0);
+  const churnMrr = rows.reduce((s, r) => s + r.churnMrr, 0);
+  const customers = rows.filter((r) => r.segment === "契約顧客").length;
+  const prospects = rows.filter((r) => r.segment === "商談中").length;
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div className="flex items-center justify-between px-6 py-3 border-b border-slate-200 bg-white">
-        <div className="text-sm">
-          <span className="text-slate-500">{accounts.length} 社</span>
-          <span className="ml-4 text-slate-500">合計MRR</span>
-          <span className="ml-1 font-bold text-emerald-700">{formatYen(totalMrr)}</span>
-        </div>
-        <Link
-          href="/accounts/new"
-          className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-        >
-          ＋ 顧客企業を追加
-        </Link>
+      {/* ポートフォリオKPI帯 */}
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-px bg-slate-200 border-b border-slate-200">
+        <Kpi label="総MRR" value={formatYen(totalMrr)} accent />
+        <Kpi label="ARR（年換算）" value={formatYen(totalMrr * 12)} />
+        <Kpi label="契約顧客" value={`${customers} 社`} />
+        <Kpi label="商談中" value={`${prospects} 社`} />
+        <Kpi label="単発(受注済)" value={formatYen(totalOneTime)} />
+        <Kpi label="解約MRR" value={formatYen(churnMrr)} danger={churnMrr > 0} />
       </div>
-      <div className="flex-1 min-h-0 overflow-auto p-6">
-        <table className="w-full text-sm border-collapse">
-          <thead>
-            <tr className="text-left text-slate-500 border-b border-slate-200">
-              <th className="py-2 pr-4 font-medium">企業名</th>
-              <th className="py-2 pr-4 font-medium">事業区分</th>
-              <th className="py-2 pr-4 font-medium">業種</th>
-              <th className="py-2 pr-4 font-medium text-right">契約数</th>
-              <th className="py-2 pr-4 font-medium text-right">MRR</th>
-              <th className="py-2 pr-4 font-medium text-right">単発(受注済)</th>
-              <th className="py-2 pr-4 font-medium text-right">商談パイプライン</th>
-              <th className="py-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(({ a, mrr, oneTime, pipeline, contracts }) => (
-              <tr key={a.id} className="border-b border-slate-100 hover:bg-slate-50">
-                <td className="py-2 pr-4 font-medium">{a.name}</td>
-                <td className="py-2 pr-4 text-slate-600">{a.businessType ?? "—"}</td>
-                <td className="py-2 pr-4 text-slate-600">{a.industry ?? "—"}</td>
-                <td className="py-2 pr-4 text-right tabular-nums">{contracts}</td>
-                <td className="py-2 pr-4 text-right tabular-nums font-semibold text-emerald-700">
-                  {mrr > 0 ? formatYen(mrr) : "—"}
-                </td>
-                <td className="py-2 pr-4 text-right tabular-nums text-slate-600">
-                  {oneTime > 0 ? formatYen(oneTime) : "—"}
-                </td>
-                <td className="py-2 pr-4 text-right tabular-nums text-slate-500">
-                  {pipeline > 0 ? formatYen(pipeline) : "—"}
-                </td>
-                <td className="py-2 text-right">
-                  <Link href={`/accounts/${a.id}`} className="text-emerald-600 hover:underline">
-                    詳細
-                  </Link>
-                </td>
-              </tr>
-            ))}
-            {accounts.length === 0 && (
-              <tr>
-                <td colSpan={8} className="py-10 text-center text-slate-400">
-                  顧客企業がありません
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+
+      <div className="flex-1 min-h-0">
+        <AccountsExplorer rows={rows} />
+      </div>
+    </div>
+  );
+}
+
+function Kpi({
+  label,
+  value,
+  accent,
+  danger,
+}: {
+  label: string;
+  value: string;
+  accent?: boolean;
+  danger?: boolean;
+}) {
+  return (
+    <div className={`px-5 py-3 ${danger ? "bg-rose-50" : accent ? "bg-emerald-50" : "bg-white"}`}>
+      <div className={`text-xs ${danger ? "text-rose-500" : "text-slate-500"}`}>{label}</div>
+      <div
+        className={`text-lg font-bold tabular-nums ${
+          danger ? "text-rose-700" : accent ? "text-emerald-700" : "text-slate-800"
+        }`}
+      >
+        {value}
       </div>
     </div>
   );
