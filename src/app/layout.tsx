@@ -13,15 +13,9 @@ export const metadata: Metadata = {
 
 const NAV = [
   { href: "/dashboard", label: "ダッシュボード" },
-  { href: "/", label: "パイプライン" },
-  { href: "/deals", label: "商談一覧" },
-  { href: "/my", label: "担当者別" },
-  { href: "/pipeline", label: "月次集計" },
-  { href: "/targets", label: "目標vs実績" },
-  { href: "/accounts", label: "顧客企業" },
-  { href: "/campaigns", label: "クリエイター管理" },
-  { href: "/progress", label: "進捗管理" },
-  { href: "/talents", label: "人材" },
+  { href: "/", label: "商談" },
+  { href: "/accounts", label: "顧客" },
+  { href: "/progress", label: "案件進捗管理" },
 ];
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

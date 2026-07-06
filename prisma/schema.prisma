@@ -59,7 +59,6 @@ model Deal {
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
   activities         Activity[]
-  talents            DealTalent[]
 
   @@index([phase])
   @@index([businessType])
@@ -78,53 +77,6 @@ model Activity {
   createdAt  DateTime @default(now())
 
   @@index([dealId])
-}
-
-/// クリエイター・パートナー（CAP/TAPの人材プール）
-model Talent {
-  id      String       @id @default(cuid())
-  name    String // 氏名
-  type    String? // 区分 (CAP/TAP)
-  partner String? // 代理店/パートナー
-  store   String? // 利用ストア
-  memo    String?
-  deals   DealTalent[]
-}
-
-/// 商談 ⇔ クリエイター（N:N アサイン）
-model DealTalent {
-  deal       Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
-  dealId     String
-  talent     Talent   @relation(fields: [talentId], references: [id], onDelete: Cascade)
-  talentId   String
-  assignedAt DateTime @default(now())
-
-  @@id([dealId, talentId])
-}
-
-/// クリエイター管理（ブランド×商品単位のキャンペーン実績）
-model Campaign {
-  id             String    @id @default(cuid())
-  brand          String // ブランド
-  productSku     String? // 商品名/SKU
-  totalAssign    Int? // 総アサイン数
-  totalSales     Int? // 総販売数
-  totalRevenue   Int? // 総売上
-  videoPosts     Int? // 動画投稿数
-  videoPosters   Int? // 動画投稿人数
-  videoSales     Int? // 動画経由販売数
-  videoGmv       Int? // 動画売上（GMV）
-  liveCount      Int? // ライブ実施回数
-  livePresenters Int? // ライブ配信人数
-  liveSales      Int? // ライブ配信経由販売数
-  liveGmv        Int? // ライブ売上（GMV）
-  partner        String? // 代理店/パートナー
-  margin         Float? // マージン
-  store          String? // 利用ストア
-  campaignName   String? // キャンペーン名
-  startDate      DateTime? // キャンペーン開始
-  endDate        DateTime? // キャンペーン終了
-  createdAt      DateTime  @default(now())
 }
 
 /// 進捗管理（ブランド×商品×週次の動画/ライブ実績トラッキング）

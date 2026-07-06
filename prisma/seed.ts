@@ -7,7 +7,6 @@ const prisma = new PrismaClient();
 type SeedData = {
   accounts: Record<string, unknown>[];
   deals: Record<string, unknown>[];
-  campaigns: Record<string, unknown>[];
 };
 
 const d = (v: unknown): Date | null => (v ? new Date(String(v)) : null);
@@ -20,13 +19,10 @@ async function main() {
   );
 
   // 冪等にするため全消去（開発用seed）
-  await prisma.dealTalent.deleteMany();
   await prisma.activity.deleteMany();
-  await prisma.campaign.deleteMany();
   await prisma.weeklyProgress.deleteMany();
   await prisma.deal.deleteMany();
   await prisma.account.deleteMany();
-  await prisma.talent.deleteMany();
   await prisma.target.deleteMany();
 
   // 顧客企業
@@ -92,33 +88,6 @@ async function main() {
     di++;
   }
 
-  // クリエイター管理（ブランド×商品のキャンペーン実績）
-  for (const c of data.campaigns) {
-    await prisma.campaign.create({
-      data: {
-        brand: String(c.brand),
-        productSku: s(c.productSku),
-        totalAssign: n(c.totalAssign),
-        totalSales: n(c.totalSales),
-        totalRevenue: n(c.totalRevenue),
-        videoPosts: n(c.videoPosts),
-        videoPosters: n(c.videoPosters),
-        videoSales: n(c.videoSales),
-        videoGmv: n(c.videoGmv),
-        liveCount: n(c.liveCount),
-        livePresenters: n(c.livePresenters),
-        liveSales: n(c.liveSales),
-        liveGmv: n(c.liveGmv),
-        partner: s(c.partner),
-        margin: c.margin == null ? null : Number(c.margin),
-        store: s(c.store),
-        campaignName: s(c.campaignName),
-        startDate: d(c.startDate),
-        endDate: d(c.endDate),
-      },
-    });
-  }
-
   // 進捗管理（週次トラッキング・デモ用）
   const weekly = [
     {
@@ -142,25 +111,6 @@ async function main() {
   ];
   for (const w of weekly) await prisma.weeklyProgress.create({ data: w });
 
-  // クリエイター/パートナー（人材プール・デモ用）
-  const talents = [
-    { name: "山田 ハル", type: "CAP", store: "storeb" },
-    { name: "佐藤 みき", type: "CAP", store: "storeb" },
-    { name: "鈴木 けん", type: "TAP", partner: "提携事務所A" },
-    { name: "高橋 ゆい", type: "TAP", partner: "提携事務所B" },
-    { name: "田中 そら", type: "CAP" },
-  ];
-  for (const t of talents) {
-    await prisma.talent.create({
-      data: {
-        name: t.name,
-        type: t.type ?? null,
-        partner: t.partner ?? null,
-        store: t.store ?? null,
-      },
-    });
-  }
-
   // 目標（成長計画のフェーズ別）
   const targets = [
     { label: "フェーズ1 (現行)", monthlyGmvTarget: 5000000, sellerTarget: 5, creatorTarget: 5, productionTarget: 30 },
@@ -170,7 +120,7 @@ async function main() {
   for (const t of targets) await prisma.target.create({ data: t });
 
   console.log(
-    `seeded: ${data.accounts.length} accounts, ${data.deals.length} deals, ${data.campaigns.length} campaigns, ${weekly.length} weeklyProgress, ${talents.length} talents, ${targets.length} targets`
+    `seeded: ${data.accounts.length} accounts, ${data.deals.length} deals, ${weekly.length} weeklyProgress, ${targets.length} targets`
   );
 }
 

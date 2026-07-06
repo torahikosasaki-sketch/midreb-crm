@@ -5,7 +5,6 @@ import { updateDeal, deleteDeal } from "@/lib/actions/deals";
 import { DealForm, type DealInitial } from "@/components/DealForm";
 import { DeleteButton } from "@/components/DeleteButton";
 import { ActivityLog } from "@/components/ActivityLog";
-import { TalentAssign } from "@/components/TalentAssign";
 import { weightedRevenue, formatYen } from "@/lib/enums";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +25,6 @@ export default async function DealDetailPage({
     include: {
       account: true,
       activities: { orderBy: { occurredAt: "desc" } },
-      talents: { include: { talent: true } },
     },
   });
   if (!deal) notFound();
@@ -35,17 +33,6 @@ export default async function DealDetailPage({
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
-
-  const allTalents = await prisma.talent.findMany({ orderBy: { name: "asc" } });
-  const assignedIds = new Set(deal.talents.map((dt) => dt.talentId));
-  const assigned = deal.talents.map((dt) => ({
-    id: dt.talent.id,
-    name: dt.talent.name,
-    type: dt.talent.type,
-  }));
-  const available = allTalents
-    .filter((t) => !assignedIds.has(t.id))
-    .map((t) => ({ id: t.id, name: t.name, type: t.type }));
 
   const activities = deal.activities.map((a) => ({
     id: a.id,
@@ -78,7 +65,7 @@ export default async function DealDetailPage({
   const weighted = weightedRevenue(deal.expectedRevenue, deal.probability);
 
   return (
-    <div className="p-6 max-w-5xl">
+    <div className="p-6 max-w-3xl">
       <div className="mb-4 flex items-start justify-between">
         <div>
           <Link href="/deals" className="text-sm text-emerald-600 hover:underline">
@@ -95,24 +82,13 @@ export default async function DealDetailPage({
         <DeleteButton action={deleteDeal.bind(null, id)} label="商談を削除" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
-          <h2 className="text-sm font-semibold text-slate-700 mb-2">商談情報</h2>
-          <DealForm
-            action={updateDeal.bind(null, id)}
-            accounts={accounts}
-            initial={initial}
-            submitLabel="保存"
-          />
-        </div>
-
-        <div className="space-y-8">
-          <section>
-            <h2 className="text-sm font-semibold text-slate-700 mb-2">アサイン人材</h2>
-            <TalentAssign dealId={id} assigned={assigned} available={available} />
-          </section>
-        </div>
-      </div>
+      <h2 className="text-sm font-semibold text-slate-700 mb-2">商談情報</h2>
+      <DealForm
+        action={updateDeal.bind(null, id)}
+        accounts={accounts}
+        initial={initial}
+        submitLabel="保存"
+      />
 
       <section className="mt-10">
         <h2 className="text-sm font-semibold text-slate-700 mb-3">活動ログ</h2>

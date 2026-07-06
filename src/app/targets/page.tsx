@@ -39,27 +39,27 @@ function Bar({
 }
 
 export default async function TargetsPage() {
-  const [targets, runningDeals, talentCount, campaigns] = await Promise.all([
+  const [targets, runningDeals, weekly] = await Promise.all([
     prisma.target.findMany({ orderBy: { label: "asc" } }),
     prisma.deal.findMany({
       where: { phase: "運用中" },
       select: { expectedRevenue: true, accountId: true },
     }),
-    prisma.talent.count(),
-    prisma.campaign.findMany({ select: { videoPosts: true } }),
+    prisma.weeklyProgress.findMany({ select: { videoPosts: true, videoPosters: true } }),
   ]);
 
   // 実績（現時点）
   const gmvActual = runningDeals.reduce((s, d) => s + d.expectedRevenue, 0);
   const sellerActual = new Set(runningDeals.map((d) => d.accountId).filter(Boolean)).size;
-  const creatorActual = talentCount;
-  const productionActual = campaigns.reduce((s, c) => s + (c.videoPosts ?? 0), 0);
+  // 案件進捗（週次）から: クリエイター数≈動画投稿人数の延べ、制作本数≈動画投稿数の延べ
+  const creatorActual = weekly.reduce((s, w) => s + (w.videoPosters ?? 0), 0);
+  const productionActual = weekly.reduce((s, w) => s + (w.videoPosts ?? 0), 0);
 
   return (
     <div className="p-6 max-w-4xl">
       <h1 className="text-xl font-bold mb-1">目標 vs 実績</h1>
       <p className="text-xs text-slate-400 mb-5">
-        実績は現時点の集計（月間GMV=運用中商談の想定GMV合計／セラー数=運用中商談の顧客数／クリエイター数=人材登録数／制作本数=キャンペーン投稿数合計）。
+        実績は現時点の集計（月間GMV=運用中商談の想定GMV合計／セラー数=運用中商談の顧客数／クリエイター数=案件進捗の動画投稿人数合計／制作本数=案件進捗の動画投稿数合計）。
       </p>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">

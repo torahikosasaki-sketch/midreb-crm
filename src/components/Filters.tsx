@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { BUSINESS_TYPES, PHASES } from "@/lib/enums";
 
@@ -7,6 +8,11 @@ export function Filters({ owners, showPhase = false }: { owners: string[]; showP
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
+
+  const isList = pathname.startsWith("/deals");
+  const toggleBase = "rounded-md px-2.5 py-1 text-sm font-medium transition-colors";
+  const active = "bg-emerald-600 text-white";
+  const inactive = "text-slate-600 hover:bg-slate-100";
 
   function setParam(key: string, value: string) {
     const next = new URLSearchParams(params.toString());
@@ -23,6 +29,14 @@ export function Filters({ owners, showPhase = false }: { owners: string[]; showP
 
   return (
     <div className="flex items-center gap-2 px-6 py-2 border-b border-slate-200 bg-white text-sm">
+      <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-0.5 mr-1">
+        <Link href="/" className={`${toggleBase} ${!isList ? active : inactive}`}>
+          カンバン
+        </Link>
+        <Link href="/deals" className={`${toggleBase} ${isList ? active : inactive}`}>
+          一覧
+        </Link>
+      </div>
       <span className="text-slate-500">フィルタ:</span>
       <select
         className={selectCls}

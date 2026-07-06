@@ -28,11 +28,9 @@ function monthKey(d: Date | null): string {
 }
 
 export default async function DashboardPage() {
-  const [deals, talentCount, accountCount, campaigns, target] = await Promise.all([
+  const [deals, accountCount, target] = await Promise.all([
     prisma.deal.findMany({ include: { account: { select: { name: true } } } }),
-    prisma.talent.count(),
     prisma.account.count(),
-    prisma.campaign.findMany(),
     prisma.target.findFirst({ orderBy: { label: "asc" } }),
   ]);
 
@@ -52,7 +50,6 @@ export default async function DashboardPage() {
     (d) => d.nextActionDate && d.nextActionDate < today
   ).length;
   const wonCount = deals.filter((d) => d.phase === "契約" || d.phase === "運用中").length;
-  const lostCount = deals.filter((d) => d.phase === "失注").length;
 
   // フェーズ別ファネル
   const phaseData = ACTIVE_PHASES.map((p) => {
@@ -91,20 +88,15 @@ export default async function DashboardPage() {
     .sort((a, b) => b.weighted - a.weighted)
     .slice(0, 8);
 
-  // クリエイター実績
-  const videoGmv = campaigns.reduce((s, c) => s + (c.videoGmv ?? 0), 0);
-  const liveGmv = campaigns.reduce((s, c) => s + (c.liveGmv ?? 0), 0);
-  const totalSales = campaigns.reduce((s, c) => s + (c.totalSales ?? 0), 0);
-
   // 目標達成率（フェーズ1のGMV目標 vs 運用中GMV）
   const gmvTarget = target?.monthlyGmvTarget ?? null;
   const gmvPct = gmvTarget ? Math.min(100, Math.round((runningGmv / gmvTarget) * 100)) : null;
 
-  // 直近の要対応（次回アクション昇順 上位5）
+  // 直近の要対応（次回アクション昇順 上位6）
   const upcoming = active
     .filter((d) => d.nextActionDate)
     .sort((a, b) => a.nextActionDate!.getTime() - b.nextActionDate!.getTime())
-    .slice(0, 5);
+    .slice(0, 6);
 
   return (
     <div className="p-6 max-w-6xl">
@@ -120,11 +112,7 @@ export default async function DashboardPage() {
         <Kpi label="進行中商談" value={`${active.length} 件`} />
         <Kpi label="運用中GMV(月間)" value={formatYen(runningGmv)} />
         <Kpi label="受注/運用中" value={`${wonCount} 件`} />
-        <Kpi
-          label="アクション遅延"
-          value={`${overdue} 件`}
-          danger={overdue > 0}
-        />
+        <Kpi label="アクション遅延" value={`${overdue} 件`} danger={overdue > 0} />
       </div>
 
       {/* チャートグリッド */}
@@ -135,7 +123,7 @@ export default async function DashboardPage() {
         <Card title="事業区分別 加重売上 構成比">
           <BizPie data={bizData} />
         </Card>
-        <Card title="月次見込み（受注予定日別 加重売上）">
+        <Card title="月次見込み（受注予定日別 加重売上）" href="/pipeline" linkLabel="月次集計の詳細 →">
           <MonthlyBars data={monthData} />
         </Card>
         <Card title="担当者別 加重売上（上位8）">
@@ -143,9 +131,9 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      {/* 下段: 目標達成・クリエイター実績・要対応 */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card title="目標達成率（運用中GMV）">
+      {/* 下段: 目標達成・要対応 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card title="目標達成率（運用中GMV）" href="/targets" linkLabel="目標 vs 実績の詳細 →">
           {gmvTarget ? (
             <div>
               <div className="flex items-baseline justify-between text-sm mb-1">
@@ -162,29 +150,14 @@ export default async function DashboardPage() {
                   style={{ width: `${gmvPct}%` }}
                 />
               </div>
-              <Link href="/targets" className="mt-3 inline-block text-xs text-emerald-600 hover:underline">
-                目標 vs 実績の詳細 →
-              </Link>
             </div>
           ) : (
             <p className="text-sm text-slate-400">目標が未設定です</p>
           )}
           <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
             <Mini label="顧客企業" value={`${accountCount} 社`} />
-            <Mini label="クリエイター/人材" value={`${talentCount} 名`} />
+            <Mini label="進行中商談" value={`${active.length} 件`} />
           </div>
-        </Card>
-
-        <Card title="クリエイター実績">
-          <div className="space-y-3 text-sm">
-            <Row label="動画 GMV" value={formatYen(videoGmv)} dot="bg-emerald-500" />
-            <Row label="ライブ GMV" value={formatYen(liveGmv)} dot="bg-violet-500" />
-            <Row label="合計販売数" value={`${totalSales.toLocaleString("ja-JP")} 点`} dot="bg-emerald-500" />
-            <Row label="失注件数" value={`${lostCount} 件`} dot="bg-rose-500" />
-          </div>
-          <Link href="/campaigns" className="mt-4 inline-block text-xs text-emerald-600 hover:underline">
-            クリエイター管理 →
-          </Link>
         </Card>
 
         <Card title="直近の要対応（次回アクション）">
@@ -202,6 +175,7 @@ export default async function DashboardPage() {
                   >
                     <span className={`h-2 w-2 rounded-full ${PHASE_COLORS[d.phase as Phase] ?? "bg-slate-300"}`} />
                     <span className="truncate flex-1">{d.account?.name ?? "(未設定)"}</span>
+                    <span className="text-xs text-slate-400">{d.owner ?? "—"}</span>
                     <span className={`text-xs ${overdueRow ? "text-rose-600 font-medium" : "text-slate-400"}`}>
                       {d.nextActionDate!.toISOString().slice(5, 10).replace("-", "/")}
                     </span>
@@ -210,9 +184,6 @@ export default async function DashboardPage() {
               })}
             </div>
           )}
-          <Link href="/my" className="mt-3 inline-block text-xs text-emerald-600 hover:underline">
-            担当者別ビュー →
-          </Link>
         </Card>
       </div>
     </div>
@@ -248,21 +219,28 @@ function Kpi({
   );
 }
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
+function Card({
+  title,
+  children,
+  href,
+  linkLabel,
+}: {
+  title: string;
+  children: React.ReactNode;
+  href?: string;
+  linkLabel?: string;
+}) {
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-4">
-      <h2 className="text-sm font-semibold text-slate-700 mb-3">{title}</h2>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-semibold text-slate-700">{title}</h2>
+        {href && linkLabel && (
+          <Link href={href} className="text-xs text-emerald-600 hover:underline shrink-0">
+            {linkLabel}
+          </Link>
+        )}
+      </div>
       {children}
-    </div>
-  );
-}
-
-function Row({ label, value, dot }: { label: string; value: string; dot: string }) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className={`h-2.5 w-2.5 rounded-full ${dot}`} />
-      <span className="text-slate-600">{label}</span>
-      <span className="ml-auto font-semibold tabular-nums text-slate-800">{value}</span>
     </div>
   );
 }
