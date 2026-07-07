@@ -14,29 +14,33 @@ function num(fd: FormData, key: string): number | null {
   return s == null ? null : Math.round(Number(s));
 }
 
-export async function createWeekly(fd: FormData) {
-  await prisma.weeklyProgress.create({
-    data: {
-      brand: str(fd, "brand") ?? "(未設定)",
-      productSku: str(fd, "productSku"),
-      weekLabel: str(fd, "weekLabel") ?? "(週未設定)",
-      targetCount: num(fd, "targetCount"),
-      videoPosts: num(fd, "videoPosts"),
-      videoPosters: num(fd, "videoPosters"),
-      videoSales: num(fd, "videoSales"),
-      videoGmv: num(fd, "videoGmv"),
-      liveCount: num(fd, "liveCount"),
-      livePresenters: num(fd, "livePresenters"),
-      liveSales: num(fd, "liveSales"),
-      liveGmv: num(fd, "liveGmv"),
-      gapToTarget: num(fd, "gapToTarget"),
-      activityNote: str(fd, "activityNote"),
-    },
+/** 週次実績を記録（同一販売単位×週があれば上書き＝upsert） */
+export async function createWeek(salesUnitId: string, fd: FormData) {
+  const weekStartStr = str(fd, "weekStart");
+  const weekStart = weekStartStr ? new Date(weekStartStr) : new Date();
+  const data = {
+    targetCount: num(fd, "targetCount"),
+    videoPosts: num(fd, "videoPosts"),
+    videoPosters: num(fd, "videoPosters"),
+    videoSales: num(fd, "videoSales"),
+    videoGmv: num(fd, "videoGmv"),
+    liveCount: num(fd, "liveCount"),
+    livePresenters: num(fd, "livePresenters"),
+    liveSales: num(fd, "liveSales"),
+    liveGmv: num(fd, "liveGmv"),
+    activityNote: str(fd, "activityNote"),
+  };
+  await prisma.weeklyProgress.upsert({
+    where: { salesUnitId_weekStart: { salesUnitId, weekStart } },
+    create: { salesUnitId, weekStart, ...data },
+    update: data,
   });
+  revalidatePath(`/progress/${salesUnitId}`);
   revalidatePath("/progress");
 }
 
-export async function deleteWeekly(id: string) {
+export async function deleteWeek(id: string, salesUnitId: string) {
   await prisma.weeklyProgress.delete({ where: { id } });
+  revalidatePath(`/progress/${salesUnitId}`);
   revalidatePath("/progress");
 }

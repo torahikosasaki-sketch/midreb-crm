@@ -22,6 +22,7 @@ async function main() {
   await prisma.dealLineItem.deleteMany();
   await prisma.activity.deleteMany();
   await prisma.weeklyProgress.deleteMany();
+  await prisma.salesUnit.deleteMany();
   await prisma.deal.deleteMany();
   await prisma.account.deleteMany();
   await prisma.target.deleteMany();
@@ -121,28 +122,49 @@ async function main() {
     di++;
   }
 
-  // 進捗管理（週次トラッキング・デモ用）
-  const weekly = [
+  // 進捗管理（販売単位 × 週次実績・デモ用）
+  const mondayOf = (base: Date, offsetWeeks: number) => {
+    const x = new Date(base.getTime() + offsetWeeks * 7 * dayMs);
+    const day = (x.getDay() + 6) % 7; // 月曜=0
+    x.setDate(x.getDate() - day);
+    x.setHours(0, 0, 0, 0);
+    return x;
+  };
+  const units = [
     {
-      brand: "PIBU", productSku: "PIBU 単品", weekLabel: "6/29週", targetCount: 100,
-      videoPosts: 40, videoPosters: 20, videoSales: 5, videoGmv: 9900,
-      liveCount: 2, livePresenters: 2, liveSales: 30, liveGmv: 297000, gapToTarget: -65,
-      activityNote: "動画好調、ライブ初回実施",
+      brand: "PIBU", productSku: "PIBU 単品", store: "storeb", weeklyTarget: 100,
+      weeks: [
+        { off: -2, videoPosts: 40, videoPosters: 20, videoSales: 5, videoGmv: 9900, liveCount: 2, livePresenters: 2, liveSales: 30, liveGmv: 297000, activityNote: "動画好調、ライブ初回実施" },
+        { off: -1, videoPosts: 55, videoPosters: 28, videoSales: 12, videoGmv: 23760, liveCount: 3, livePresenters: 3, liveSales: 48, liveGmv: 475200, activityNote: "ライブ強化で販売増" },
+        { off: 0, videoPosts: 60, videoPosters: 30, videoSales: 20, videoGmv: 39600, liveCount: 4, livePresenters: 4, liveSales: 72, liveGmv: 712800, activityNote: "定番化、KOL追加" },
+      ],
     },
     {
-      brand: "PIBU", productSku: "PIBU 単品", weekLabel: "7/6週", targetCount: 100,
-      videoPosts: 55, videoPosters: 28, videoSales: 12, videoGmv: 23760,
-      liveCount: 3, livePresenters: 3, liveSales: 48, liveGmv: 475200, gapToTarget: -40,
-      activityNote: "ライブ強化で販売増",
+      brand: "PIBU", productSku: "PIBU 2個セット", store: "PIBU", weeklyTarget: 50,
+      weeks: [
+        { off: -1, videoPosts: 10, videoPosters: 6, videoSales: 2, videoGmv: 7920, liveCount: 0, livePresenters: 0, liveSales: 0, liveGmv: 0, activityNote: "セット訴求は動画中心" },
+        { off: 0, videoPosts: 14, videoPosters: 8, videoSales: 6, videoGmv: 23760, liveCount: 1, livePresenters: 1, liveSales: 8, liveGmv: 63360, activityNote: "初ライブで反応あり" },
+      ],
     },
     {
-      brand: "PIBU", productSku: "PIBU 2個セット", weekLabel: "6/29週", targetCount: 50,
-      videoPosts: 10, videoPosters: 6, videoSales: 2, videoGmv: 7920,
-      liveCount: 0, livePresenters: 0, liveSales: 0, liveGmv: 0, gapToTarget: -48,
-      activityNote: "セット訴求は動画中心",
+      brand: "dermashare", productSku: "スティックファンデ", store: "storeb", weeklyTarget: 80,
+      weeks: [
+        { off: 0, videoPosts: 22, videoPosters: 12, videoSales: 18, videoGmv: 53640, liveCount: 1, livePresenters: 1, liveSales: 25, liveGmv: 74500, activityNote: "CV率改善、在庫潤沢" },
+      ],
     },
   ];
-  for (const w of weekly) await prisma.weeklyProgress.create({ data: w });
+  let weeklyCount = 0;
+  for (const u of units) {
+    const { weeks, ...unitData } = u;
+    const created = await prisma.salesUnit.create({ data: unitData });
+    for (const w of weeks) {
+      const { off, ...metrics } = w;
+      await prisma.weeklyProgress.create({
+        data: { salesUnitId: created.id, weekStart: mondayOf(now, off), ...metrics },
+      });
+      weeklyCount++;
+    }
+  }
 
   // 目標（成長計画のフェーズ別）
   const targets = [
@@ -154,7 +176,7 @@ async function main() {
 
   const lineCount = await prisma.dealLineItem.count();
   console.log(
-    `seeded: ${data.accounts.length} accounts, ${data.deals.length} deals, ${lineCount} lineItems, ${weekly.length} weeklyProgress, ${targets.length} targets`
+    `seeded: ${data.accounts.length} accounts, ${data.deals.length} deals, ${lineCount} lineItems, ${units.length} salesUnits, ${weeklyCount} weeklyProgress, ${targets.length} targets`
   );
 }
 

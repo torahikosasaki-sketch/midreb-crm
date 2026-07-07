@@ -97,13 +97,28 @@ model Activity {
   @@index([dealId])
 }
 
-/// 進捗管理（ブランド×商品×週次の動画/ライブ実績トラッキング）
+/// 販売単位（ブランド×商品）。進捗管理の主軸マスター
+model SalesUnit {
+  id           String           @id @default(cuid())
+  brand        String // ブランド
+  productSku   String? // 商品名/SKU
+  store        String? // 利用ストア
+  weeklyTarget Int? // 週次目標（販売数）
+  status       String           @default("稼働中") // 稼働中 / 終了
+  memo         String?
+  createdAt    DateTime         @default(now())
+  weeks        WeeklyProgress[]
+
+  @@index([status])
+}
+
+/// 週次進捗（販売単位 × 週の動画/ライブ実績）。目標差分は算出（目標 − 動画販売 − ライブ販売）
 model WeeklyProgress {
-  id             String   @id @default(cuid())
-  brand          String // ブランド
-  productSku     String? // 商品名/SKU
-  weekLabel      String // 週（例: 6/29週）
-  targetCount    Int? // 目標数
+  id             String    @id @default(cuid())
+  salesUnit      SalesUnit @relation(fields: [salesUnitId], references: [id], onDelete: Cascade)
+  salesUnitId    String
+  weekStart      DateTime // 週開始日
+  targetCount    Int? // 週次目標（未指定なら販売単位のweeklyTarget）
   videoPosts     Int? // 動画投稿数
   videoPosters   Int? // 動画投稿人数
   videoSales     Int? // 動画経由販売数
@@ -112,11 +127,11 @@ model WeeklyProgress {
   livePresenters Int? // ライブ配信人数
   liveSales      Int? // ライブ配信経由販売数
   liveGmv        Int? // ライブ売上（GMV）
-  gapToTarget    Int? // 目標との差分
   activityNote   String? // 活動記録
-  createdAt      DateTime @default(now())
+  createdAt      DateTime  @default(now())
 
-  @@index([weekLabel])
+  @@unique([salesUnitId, weekStart])
+  @@index([salesUnitId])
 }
 
 /// 目標 vs 実績
