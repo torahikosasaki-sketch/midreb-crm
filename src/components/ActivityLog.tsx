@@ -32,9 +32,11 @@ function fmt(iso: string): string {
 export function ActivityLog({
   dealId,
   activities,
+  owners,
 }: {
   dealId: string;
   activities: ActivityItem[];
+  owners: string[];
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const create = createActivity.bind(null, dealId);
@@ -72,10 +74,17 @@ export function ActivityLog({
         </label>
         <label className="flex flex-col gap-1 text-xs">
           <span className="text-slate-500">担当者</span>
-          <input
+          <select
             name="owner"
             className="rounded-md border border-slate-300 px-2 py-1.5 text-sm w-28"
-          />
+          >
+            <option value="">—</option>
+            {owners.map((o) => (
+              <option key={o} value={o}>
+                {o}
+              </option>
+            ))}
+          </select>
         </label>
         <label className="flex flex-col gap-1 text-xs">
           <span className="text-slate-500">発生日時</span>

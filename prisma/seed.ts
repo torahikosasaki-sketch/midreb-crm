@@ -26,6 +26,16 @@ async function main() {
   await prisma.deal.deleteMany();
   await prisma.account.deleteMany();
   await prisma.target.deleteMany();
+  await prisma.employee.deleteMany();
+
+  // 従業員（担当者マスタ・デモ用）
+  const employees = [
+    { name: "田中", role: "営業" },
+    { name: "佐藤", role: "営業" },
+    { name: "鈴木", role: "運用" },
+    { name: "高橋", role: "PM" },
+  ];
+  for (const e of employees) await prisma.employee.create({ data: e });
 
   // 顧客企業
   const accountIdByName = new Map<string, string>();

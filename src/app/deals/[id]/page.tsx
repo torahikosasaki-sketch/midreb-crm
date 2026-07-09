@@ -7,6 +7,7 @@ import { DeleteButton } from "@/components/DeleteButton";
 import { ActivityLog } from "@/components/ActivityLog";
 import { LineItemEditor, type LineItem } from "@/components/LineItemEditor";
 import { formatYen, linesMrr, linesOneTime, linesAcv, isContracted } from "@/lib/enums";
+import { ownerOptions } from "@/lib/employees";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,7 @@ export default async function DealDetailPage({
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
+  const owners = await ownerOptions(deal.owner);
 
   const lineItems: LineItem[] = deal.lineItems.map((l) => ({
     id: l.id,
@@ -120,13 +122,14 @@ export default async function DealDetailPage({
       <DealForm
         action={updateDeal.bind(null, id)}
         accounts={accounts}
+        owners={owners}
         initial={initial}
         submitLabel="保存"
       />
 
       <section className="mt-10">
         <h2 className="text-sm font-semibold text-slate-700 mb-3">活動ログ</h2>
-        <ActivityLog dealId={id} activities={activities} />
+        <ActivityLog dealId={id} activities={activities} owners={owners} />
       </section>
     </div>
   );

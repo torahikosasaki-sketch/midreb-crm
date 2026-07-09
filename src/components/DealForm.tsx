@@ -35,11 +35,13 @@ export type DealInitial = {
 export function DealForm({
   action,
   accounts,
+  owners,
   initial,
   submitLabel,
 }: {
   action: (fd: FormData) => void | Promise<void>;
   accounts: AccountOption[];
+  owners: string[];
   initial?: DealInitial;
   submitLabel: string;
 }) {
@@ -102,7 +104,7 @@ export function DealForm({
       </Field>
 
       <Field label="担当者">
-        <TextInput name="owner" defaultValue={initial?.owner ?? ""} />
+        <Select name="owner" includeBlank options={owners} defaultValue={initial?.owner ?? ""} />
       </Field>
 
       <Field label="受注予定日">

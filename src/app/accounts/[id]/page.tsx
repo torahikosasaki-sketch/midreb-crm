@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { updateAccount, deleteAccount } from "@/lib/actions/accounts";
 import { AccountForm, type AccountInitial } from "@/components/AccountForm";
 import { DeleteButton } from "@/components/DeleteButton";
+import { ownerOptions } from "@/lib/employees";
 import {
   formatYen,
   linesMrr,
@@ -31,6 +32,7 @@ export default async function AccountDetailPage({
   });
   if (!account) notFound();
 
+  const owners = await ownerOptions(account.owner);
   const contracts = account.deals.filter((d) => isContracted(d.phase));
   const opportunities = account.deals.filter(
     (d) => !isContracted(d.phase) && d.phase !== "失注" && d.phase !== "保留"
@@ -189,7 +191,7 @@ export default async function AccountDetailPage({
 
       <section>
         <h2 className="text-sm font-semibold text-slate-700 mb-2">企業情報・連絡先</h2>
-        <AccountForm action={updateAccount.bind(null, id)} initial={initial} submitLabel="保存" />
+        <AccountForm action={updateAccount.bind(null, id)} owners={owners} initial={initial} submitLabel="保存" />
       </section>
     </div>
   );

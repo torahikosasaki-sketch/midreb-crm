@@ -24,10 +24,12 @@ export type AccountInitial = {
 
 export function AccountForm({
   action,
+  owners,
   initial,
   submitLabel,
 }: {
   action: (fd: FormData) => void | Promise<void>;
+  owners: string[];
   initial?: AccountInitial;
   submitLabel: string;
 }) {
@@ -89,7 +91,7 @@ export function AccountForm({
           <Select name="status" includeBlank options={ACCOUNT_STATUSES} defaultValue={initial?.status ?? ""} />
         </Field>
         <Field label="担当者">
-          <TextInput name="owner" defaultValue={initial?.owner ?? ""} />
+          <Select name="owner" includeBlank options={owners} defaultValue={initial?.owner ?? ""} />
         </Field>
         <Field label="初回接触日">
           <TextInput name="firstContactDate" type="date" defaultValue={initial?.firstContactDate ?? ""} />

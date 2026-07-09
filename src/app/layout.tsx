@@ -41,6 +41,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                 </Link>
               ))}
             </nav>
+            <Link
+              href="/settings"
+              className="ml-auto px-3 py-1.5 rounded-md text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+            >
+              設定
+            </Link>
           </div>
         </header>
         <main className="flex-1 min-h-0 flex flex-col">{children}</main>

@@ -144,3 +144,15 @@ model Target {
   creatorTarget    Int? // クリエイター数目標
   productionTarget Int? // 制作本数目標
 }
+
+/// 従業員（担当者マスタ）。owner系の選択肢
+model Employee {
+  id        String   @id @default(cuid())
+  name      String // 氏名
+  email     String? // メール
+  role      String? // 役割（例: 営業 / 運用 / PM）
+  active    Boolean  @default(true) // 稼働中
+  createdAt DateTime @default(now())
+
+  @@index([active])
+}
