@@ -1,12 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { EMPLOYEE_ROLES } from "@/lib/enums";
-import {
-  createEmployee,
-  updateEmployee,
-  deleteEmployee,
-  toggleEmployee,
-} from "@/lib/actions/employees";
+import { createEmployee } from "@/lib/actions/employees";
+import { EmployeeRow } from "@/components/EmployeeRow";
 
 export const dynamic = "force-dynamic";
 
@@ -72,60 +68,14 @@ export default async function SettingsPage() {
             <p className="text-sm text-slate-400">従業員が登録されていません。</p>
           )}
           {employees.map((e) => (
-            <div
+            <EmployeeRow
               key={e.id}
-              className={`flex flex-wrap items-end gap-2 rounded-lg border p-3 ${
-                e.active ? "border-slate-200 bg-white" : "border-slate-200 bg-slate-50 opacity-70"
-              }`}
-            >
-              <form action={updateEmployee.bind(null, e.id)} className="flex flex-wrap items-end gap-2 flex-1">
-                <L label="氏名">
-                  <input name="name" defaultValue={e.name} className={`${inputCls} w-40`} />
-                </L>
-                <L label="役割">
-                  <select name="role" defaultValue={e.role ?? ""} className={`${inputCls} w-32`}>
-                    <option value="">—</option>
-                    {e.role && !(EMPLOYEE_ROLES as readonly string[]).includes(e.role) && (
-                      <option value={e.role}>{e.role}</option>
-                    )}
-                    {EMPLOYEE_ROLES.map((r) => (
-                      <option key={r} value={r}>
-                        {r}
-                      </option>
-                    ))}
-                  </select>
-                </L>
-                <L label="メール">
-                  <input name="email" type="email" defaultValue={e.email ?? ""} className={`${inputCls} w-56`} />
-                </L>
-                <button
-                  type="submit"
-                  className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
-                >
-                  保存
-                </button>
-              </form>
-              <div className="flex items-center gap-2">
-                <form action={toggleEmployee.bind(null, e.id, !e.active)}>
-                  <button
-                    type="submit"
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                      e.active
-                        ? "bg-emerald-100 text-emerald-700"
-                        : "bg-slate-200 text-slate-600"
-                    }`}
-                    title="クリックで稼働/停止を切替"
-                  >
-                    {e.active ? "稼働中" : "停止中"}
-                  </button>
-                </form>
-                <form action={deleteEmployee.bind(null, e.id)}>
-                  <button type="submit" className="text-xs text-slate-400 hover:text-rose-600">
-                    削除
-                  </button>
-                </form>
-              </div>
-            </div>
+              id={e.id}
+              name={e.name}
+              role={e.role}
+              email={e.email}
+              active={e.active}
+            />
           ))}
         </div>
       </section>
