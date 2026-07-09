@@ -9,6 +9,7 @@ import {
   linesAcv,
 } from "@/lib/enums";
 import { createLineItem, deleteLineItem, setLineStatus } from "@/lib/actions/lineItems";
+import { SubmitButton } from "@/components/SubmitButton";
 
 export type LineItem = {
   id: string;
@@ -175,12 +176,12 @@ export function LineItemEditor({
             </L>
           </>
         )}
-        <button
-          type="submit"
+        <SubmitButton
           className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
+          pendingLabel="追加中…"
         >
           ＋ 明細を追加
-        </button>
+        </SubmitButton>
       </form>
     </div>
   );

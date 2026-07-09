@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { formatYen, linesMrr, POST_CONTRACT_PHASES } from "@/lib/enums";
 import { createTarget, deleteTarget } from "@/lib/actions/targets";
+import { SubmitButton } from "@/components/SubmitButton";
 
 export const dynamic = "force-dynamic";
 
@@ -126,9 +127,9 @@ export default async function TargetsPage() {
           <span className="text-slate-500">制作本数</span>
           <input name="productionTarget" type="number" className="rounded-md border border-slate-300 px-2 py-1.5 text-sm w-20" />
         </label>
-        <button type="submit" className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">
+        <SubmitButton className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700" pendingLabel="追加中…">
           ＋ 追加
-        </button>
+        </SubmitButton>
       </form>
     </div>
   );

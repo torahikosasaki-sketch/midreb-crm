@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { EMPLOYEE_ROLES } from "@/lib/enums";
 import { updateEmployee, toggleEmployee, deleteEmployee } from "@/lib/actions/employees";
+import { SubmitButton } from "@/components/SubmitButton";
 
 const inputCls = "rounded-md border border-slate-300 px-2 py-1.5 text-sm";
 
@@ -61,12 +62,12 @@ export function EmployeeRow({
             className={`${inputCls} w-56`}
           />
         </L>
-        <button
-          type="submit"
+        <SubmitButton
           className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+          pendingLabel="保存中…"
         >
           保存
-        </button>
+        </SubmitButton>
       </form>
       <div className="flex items-center gap-2">
         <form action={toggleEmployee.bind(null, id, !active)}>

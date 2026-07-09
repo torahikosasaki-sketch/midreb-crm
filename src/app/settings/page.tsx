@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { EMPLOYEE_ROLES } from "@/lib/enums";
 import { createEmployee } from "@/lib/actions/employees";
 import { EmployeeRow } from "@/components/EmployeeRow";
+import { SubmitButton } from "@/components/SubmitButton";
 
 export const dynamic = "force-dynamic";
 
@@ -54,12 +55,12 @@ export default async function SettingsPage() {
           <L label="メール">
             <input name="email" type="email" className={`${inputCls} w-56`} />
           </L>
-          <button
-            type="submit"
+          <SubmitButton
             className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
+            pendingLabel="追加中…"
           >
             ＋ 従業員を追加
-          </button>
+          </SubmitButton>
         </form>
 
         {/* 一覧（各行が編集フォーム） */}

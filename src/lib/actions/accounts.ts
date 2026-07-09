@@ -61,7 +61,7 @@ export async function updateAccount(id: string, fd: FormData) {
   await prisma.account.update({ where: { id }, data: accountDataFromForm(fd) });
   revalidatePath("/accounts");
   revalidatePath(`/accounts/${id}`);
-  redirect(`/accounts/${id}`);
+  redirect("/accounts");
 }
 
 export async function deleteAccount(id: string) {

@@ -11,6 +11,7 @@ import {
   type Phase,
 } from "@/lib/enums";
 import { Field, TextInput, TextArea, Select, Button } from "@/components/ui";
+import { SubmitButton } from "@/components/SubmitButton";
 
 type AccountOption = { id: string; name: string };
 
@@ -142,7 +143,12 @@ export function DealForm({
       </div>
 
       <div className="md:col-span-2 flex gap-2 pt-2">
-        <Button type="submit">{submitLabel}</Button>
+        <SubmitButton
+          className="rounded-md px-4 py-2 text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700"
+          pendingLabel="保存中…"
+        >
+          {submitLabel}
+        </SubmitButton>
         <Button type="button" variant="ghost" onClick={() => router.back()}>
           キャンセル
         </Button>

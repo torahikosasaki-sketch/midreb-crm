@@ -57,7 +57,7 @@ export async function updateDeal(id: string, fd: FormData) {
   revalidatePath("/");
   revalidatePath("/deals");
   revalidatePath(`/deals/${id}`);
-  redirect(`/deals/${id}`);
+  redirect("/deals");
 }
 
 export async function deleteDeal(id: string) {

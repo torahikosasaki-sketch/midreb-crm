@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { ACTIVITY_TYPES } from "@/lib/enums";
 import { createActivity, deleteActivity } from "@/lib/actions/activities";
+import { SubmitButton } from "@/components/SubmitButton";
 
 export type ActivityItem = {
   id: string;
@@ -94,12 +95,12 @@ export function ActivityLog({
             className="rounded-md border border-slate-300 px-2 py-1.5 text-sm"
           />
         </label>
-        <button
-          type="submit"
+        <SubmitButton
           className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
+          pendingLabel="記録中…"
         >
           記録
-        </button>
+        </SubmitButton>
       </form>
 
       {activities.length === 0 ? (

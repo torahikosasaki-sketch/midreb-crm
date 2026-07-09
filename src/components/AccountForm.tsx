@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { BUSINESS_TYPES, REGIONS, ACCOUNT_STATUSES, bizTagClass } from "@/lib/enums";
 import { Field, TextInput, Select, Button } from "@/components/ui";
+import { SubmitButton } from "@/components/SubmitButton";
 import { LogoUpload } from "@/components/LogoUpload";
 
 export type AccountInitial = {
@@ -111,7 +112,12 @@ export function AccountForm({
       </div>
 
       <div className="flex gap-2 pt-2">
-        <Button type="submit">{submitLabel}</Button>
+        <SubmitButton
+          className="rounded-md px-4 py-2 text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700"
+          pendingLabel="保存中…"
+        >
+          {submitLabel}
+        </SubmitButton>
         <Button type="button" variant="ghost" onClick={() => router.back()}>
           キャンセル
         </Button>

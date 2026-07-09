@@ -5,6 +5,7 @@ import { formatYen } from "@/lib/enums";
 import { updateSalesUnit, deleteSalesUnit } from "@/lib/actions/salesUnits";
 import { createWeek, deleteWeek } from "@/lib/actions/progress";
 import { DeleteButton } from "@/components/DeleteButton";
+import { SubmitButton } from "@/components/SubmitButton";
 import { ProgressChart, type ProgressPoint } from "@/components/ProgressChart";
 import {
   SALES_UNIT_STATUSES,
@@ -171,9 +172,9 @@ export default async function SalesUnitDetail({
           <Inp name="liveSales" label="ライブ販売" type="number" />
           <Inp name="liveGmv" label="ライブGMV" type="number" w="w-24" />
           <Inp name="activityNote" label="活動記録" w="w-48" />
-          <button type="submit" className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">
+          <SubmitButton className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700" pendingLabel="記録中…">
             記録
-          </button>
+          </SubmitButton>
         </form>
         <p className="text-[11px] text-slate-400 mt-1">※ 同じ週開始日で記録すると上書きされます。差分は自動算出（総販売 − 目標）。</p>
       </section>
@@ -221,9 +222,9 @@ export default async function SalesUnitDetail({
             <input name="memo" defaultValue={unit.memo ?? ""} className={inputCls} />
           </Field>
           <div className="col-span-2 md:col-span-3">
-            <button type="submit" className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">
+            <SubmitButton className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700" pendingLabel="保存中…">
               保存
-            </button>
+            </SubmitButton>
           </div>
         </form>
       </section>

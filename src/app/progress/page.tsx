@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatYen } from "@/lib/enums";
 import { createSalesUnit } from "@/lib/actions/salesUnits";
+import { SubmitButton } from "@/components/SubmitButton";
 import {
   weekSales,
   weekGmv,
@@ -138,12 +139,12 @@ export default async function ProgressPage() {
         <Inp name="productSku" label="商品名/SKU" w="w-40" />
         <Inp name="store" label="ストア" w="w-24" />
         <Inp name="weeklyTarget" label="週次目標" type="number" w="w-24" />
-        <button
-          type="submit"
+        <SubmitButton
           className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
+          pendingLabel="追加中…"
         >
           ＋ 追加
-        </button>
+        </SubmitButton>
       </form>
     </div>
   );
