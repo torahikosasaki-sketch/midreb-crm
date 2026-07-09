@@ -30,10 +30,10 @@ async function main() {
 
   // 従業員（担当者マスタ・デモ用）
   const employees = [
-    { name: "田中", role: "営業" },
-    { name: "佐藤", role: "営業" },
-    { name: "鈴木", role: "運用" },
-    { name: "高橋", role: "PM" },
+    { name: "田中", role: "セールス" },
+    { name: "佐藤", role: "セールス" },
+    { name: "鈴木", role: "CS" },
+    { name: "高橋", role: "コーポレート" },
   ];
   for (const e of employees) await prisma.employee.create({ data: e });
 

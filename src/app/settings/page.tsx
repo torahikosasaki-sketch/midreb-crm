@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { EMPLOYEE_ROLES } from "@/lib/enums";
 import {
   createEmployee,
   updateEmployee,
@@ -45,7 +46,14 @@ export default async function SettingsPage() {
             <input name="name" required className={`${inputCls} w-40`} />
           </L>
           <L label="役割">
-            <input name="role" placeholder="営業 / 運用 / PM" className={`${inputCls} w-32`} />
+            <select name="role" className={`${inputCls} w-32`}>
+              <option value="">—</option>
+              {EMPLOYEE_ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
           </L>
           <L label="メール">
             <input name="email" type="email" className={`${inputCls} w-56`} />
@@ -75,7 +83,17 @@ export default async function SettingsPage() {
                   <input name="name" defaultValue={e.name} className={`${inputCls} w-40`} />
                 </L>
                 <L label="役割">
-                  <input name="role" defaultValue={e.role ?? ""} className={`${inputCls} w-32`} />
+                  <select name="role" defaultValue={e.role ?? ""} className={`${inputCls} w-32`}>
+                    <option value="">—</option>
+                    {e.role && !(EMPLOYEE_ROLES as readonly string[]).includes(e.role) && (
+                      <option value={e.role}>{e.role}</option>
+                    )}
+                    {EMPLOYEE_ROLES.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
                 </L>
                 <L label="メール">
                   <input name="email" type="email" defaultValue={e.email ?? ""} className={`${inputCls} w-56`} />
