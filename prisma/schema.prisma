@@ -18,7 +18,8 @@ datasource db {
 model Account {
   id               String      @id @default(cuid())
   name             String // 企業名
-  businessType     String? // 事業区分
+  businessTypes    String[]    @default([]) // 事業タグ（複数）
+  logoUrl          String? // 顧客ロゴ（データURI）
   targetTier       String? // ターゲット階層
   industry         String? // 業種
   region           String? // 国内/海外

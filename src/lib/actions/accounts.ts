@@ -11,10 +11,27 @@ function str(fd: FormData, key: string): string | null {
   return s === "" ? null : s;
 }
 
+const BIZ_SET = new Set([
+  "storeb",
+  "TTS導入・運用支援",
+  "越境支援",
+  "他社動画・ライブ支援",
+  "コンサル",
+]);
+
 function accountDataFromForm(fd: FormData) {
+  // 事業タグ（固定セットのみ許可・重複排除）
+  const businessTypes = [...new Set(fd.getAll("businessTypes").map(String))].filter((t) =>
+    BIZ_SET.has(t)
+  );
+  // ロゴ: データURI or 空(削除)。50万文字(≈数百KB)を上限にガード
+  const logo = str(fd, "logoUrl");
+  const logoUrl = logo && logo.startsWith("data:image/") && logo.length < 500000 ? logo : logo ? undefined : null;
+
   return {
     name: str(fd, "name") ?? "(無名)",
-    businessType: str(fd, "businessType"),
+    businessTypes,
+    ...(logoUrl === undefined ? {} : { logoUrl }),
     targetTier: str(fd, "targetTier"),
     industry: str(fd, "industry"),
     region: str(fd, "region"),

@@ -40,7 +40,8 @@ export default async function AccountsPage() {
       return {
         id: a.id,
         name: a.name,
-        businessType: a.businessType,
+        businessTypes: a.businessTypes,
+        logoUrl: a.logoUrl,
         industry: a.industry,
         region: a.region,
         owner: a.owner,

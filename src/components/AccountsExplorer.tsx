@@ -2,12 +2,13 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { formatYen } from "@/lib/enums";
+import { formatYen, bizTagClass } from "@/lib/enums";
 
 export type AccountRow = {
   id: string;
   name: string;
-  businessType: string | null;
+  businessTypes: string[];
+  logoUrl: string | null;
   industry: string | null;
   region: string | null;
   owner: string | null;
@@ -28,7 +29,7 @@ export function AccountsExplorer({ rows }: { rows: AccountRow[] }) {
   const [sort, setSort] = useState<Sort>("mrr");
 
   const bizTypes = useMemo(
-    () => [...new Set(rows.map((r) => r.businessType).filter(Boolean) as string[])].sort(),
+    () => [...new Set(rows.flatMap((r) => r.businessTypes))].sort(),
     [rows]
   );
   const maxMrr = useMemo(() => Math.max(1, ...rows.map((r) => r.mrr)), [rows]);
@@ -37,7 +38,7 @@ export function AccountsExplorer({ rows }: { rows: AccountRow[] }) {
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     let list = rows.filter((r) => {
-      if (biz && r.businessType !== biz) return false;
+      if (biz && !r.businessTypes.includes(biz)) return false;
       if (churnOnly && r.churnMrr <= 0) return false;
       if (q && !r.name.toLowerCase().includes(q) && !(r.owner ?? "").toLowerCase().includes(q))
         return false;
@@ -113,20 +114,39 @@ export function AccountsExplorer({ rows }: { rows: AccountRow[] }) {
             href={`/accounts/${r.id}`}
             className="flex items-center gap-4 rounded-lg border border-slate-200 bg-white px-4 py-3 hover:border-emerald-300 hover:shadow-sm transition-all"
           >
-            {/* 左: 企業名 + バッジ */}
-            <div className="min-w-0 w-64 shrink-0">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold truncate">{r.name}</span>
-                {r.churnMrr > 0 && (
-                  <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-medium text-rose-600">
-                    解約あり
-                  </span>
-                )}
-              </div>
-              <div className="mt-0.5 flex flex-wrap gap-1 text-[10px] text-slate-400">
-                {r.businessType && <span>{r.businessType}</span>}
-                {r.industry && <span>・{r.industry}</span>}
-                {r.region && <span>・{r.region}</span>}
+            {/* 左: ロゴ + 企業名 + タグ */}
+            <div className="min-w-0 w-72 shrink-0 flex items-center gap-3">
+              {r.logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={r.logoUrl}
+                  alt={r.name}
+                  className="h-9 w-9 rounded-md object-contain border border-slate-200 bg-white shrink-0"
+                />
+              ) : (
+                <div className="h-9 w-9 rounded-md bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-400 shrink-0">
+                  {r.name.slice(0, 1)}
+                </div>
+              )}
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold truncate">{r.name}</span>
+                  {r.churnMrr > 0 && (
+                    <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-medium text-rose-600">
+                      解約あり
+                    </span>
+                  )}
+                </div>
+                <div className="mt-0.5 flex flex-wrap items-center gap-1">
+                  {r.businessTypes.map((t) => (
+                    <span key={t} className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${bizTagClass(t)}`}>
+                      {t}
+                    </span>
+                  ))}
+                  {r.businessTypes.length === 0 && r.industry && (
+                    <span className="text-[10px] text-slate-400">{r.industry}</span>
+                  )}
+                </div>
               </div>
             </div>
 

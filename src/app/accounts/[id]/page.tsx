@@ -10,6 +10,7 @@ import {
   linesOneTime,
   linesAcv,
   isContracted,
+  bizTagClass,
   PHASE_COLORS,
   type Phase,
 } from "@/lib/enums";
@@ -48,7 +49,8 @@ export default async function AccountDetailPage({
 
   const initial: AccountInitial = {
     name: account.name,
-    businessType: account.businessType,
+    businessTypes: account.businessTypes,
+    logoUrl: account.logoUrl,
     targetTier: account.targetTier,
     industry: account.industry,
     region: account.region,
@@ -64,14 +66,37 @@ export default async function AccountDetailPage({
   return (
     <div className="p-6 max-w-4xl">
       <div className="mb-4 flex items-start justify-between">
-        <div>
+        <div className="min-w-0">
           <Link href="/accounts" className="text-sm text-emerald-600 hover:underline">
             ← 顧客
           </Link>
-          <h1 className="text-xl font-bold mt-1">{account.name}</h1>
-          <p className="text-sm text-slate-500">
-            {account.businessType ?? "—"} ・ {account.industry ?? "—"} ・ {account.region ?? "—"}
-          </p>
+          <div className="flex items-center gap-3 mt-1">
+            {account.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={account.logoUrl}
+                alt={account.name}
+                className="h-12 w-12 rounded-lg object-contain border border-slate-200 bg-white shrink-0"
+              />
+            ) : (
+              <div className="h-12 w-12 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 font-bold shrink-0">
+                {account.name.slice(0, 1)}
+              </div>
+            )}
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold truncate">{account.name}</h1>
+              <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                {account.businessTypes.map((t) => (
+                  <span key={t} className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${bizTagClass(t)}`}>
+                    {t}
+                  </span>
+                ))}
+                <span className="text-xs text-slate-400">
+                  {account.industry ?? "—"} ・ {account.region ?? "—"}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
         <DeleteButton action={deleteAccount.bind(null, id)} label="顧客を削除" />
       </div>

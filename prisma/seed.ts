@@ -33,7 +33,7 @@ async function main() {
     const created = await prisma.account.create({
       data: {
         name: String(a.name),
-        businessType: s(a.businessType),
+        businessTypes: a.businessType ? [String(a.businessType)] : [],
         industry: s(a.industry),
         region: s(a.region),
         targetTier: s(a.targetTier),
@@ -120,6 +120,17 @@ async function main() {
       });
     }
     di++;
+  }
+
+  // デモ: 顧客の事業タグを、紐づく商談の事業区分の和集合で補完（複数タグ化）
+  const withDeals = await prisma.account.findMany({
+    include: { deals: { select: { businessType: true } } },
+  });
+  for (const a of withDeals) {
+    const tags = [...new Set([...a.businessTypes, ...a.deals.map((d) => d.businessType)])];
+    if (tags.length !== a.businessTypes.length) {
+      await prisma.account.update({ where: { id: a.id }, data: { businessTypes: tags } });
+    }
   }
 
   // 進捗管理（販売単位 × 週次実績・デモ用）

@@ -10,6 +10,18 @@ export const BUSINESS_TYPES = [
 ] as const;
 export type BusinessType = (typeof BUSINESS_TYPES)[number];
 
+/** 事業タグのチップ配色（Tailwind クラス） */
+export const BUSINESS_TYPE_COLORS: Record<string, string> = {
+  storeb: "bg-emerald-100 text-emerald-700",
+  "TTS導入・運用支援": "bg-teal-100 text-teal-700",
+  越境支援: "bg-violet-100 text-violet-700",
+  "他社動画・ライブ支援": "bg-amber-100 text-amber-700",
+  コンサル: "bg-rose-100 text-rose-700",
+};
+export function bizTagClass(tag: string): string {
+  return BUSINESS_TYPE_COLORS[tag] ?? "bg-slate-100 text-slate-600";
+}
+
 /** 商談フェーズ（標準フロー）。order はカンバン列の並び順 */
 export const PHASES = [
   "初回接触",
