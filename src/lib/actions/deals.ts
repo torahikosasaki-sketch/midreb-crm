@@ -68,6 +68,35 @@ export async function updateDeal(id: string, fd: FormData) {
   redirect("/"); // 商談カンバンに戻る
 }
 
+/** 一覧ビューのセル直接編集（Excelライク）。1フィールドだけ更新して保存 */
+const INLINE_EDITABLE = new Set(["accountId", "businessType", "phase", "probability", "owner"]);
+export async function updateDealField(
+  id: string,
+  field: string,
+  value: string,
+  customerize?: boolean
+) {
+  if (!INLINE_EDITABLE.has(field)) throw new Error(`編集不可のフィールド: ${field}`);
+
+  const data: Record<string, unknown> = {};
+  if (field === "probability") {
+    const n = Number(value);
+    data.probability = Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0;
+  } else if (field === "accountId" || field === "owner") {
+    data[field] = value === "" ? null : value;
+  } else {
+    data[field] = value;
+  }
+  // フェーズを契約締結済みにし「はい」を選んだ場合は顧客化
+  if (field === "phase" && customerize) data.customerized = true;
+
+  await prisma.deal.update({ where: { id }, data });
+  revalidatePath("/");
+  revalidatePath("/deals");
+  revalidatePath("/accounts");
+  revalidatePath(`/deals/${id}`);
+}
+
 export async function deleteDeal(id: string) {
   await prisma.deal.delete({ where: { id } });
   revalidatePath("/");

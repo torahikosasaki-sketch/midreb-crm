@@ -1,14 +1,9 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import {
-  formatYen,
-  linesMrr,
-  linesOneTime,
-  linesAcv,
-  PHASE_COLORS,
-  type Phase,
-} from "@/lib/enums";
+import { formatYen, linesMrr, linesOneTime, linesAcv } from "@/lib/enums";
 import { Filters } from "@/components/Filters";
+import { DealsTable, type DealRow } from "@/components/DealsTable";
+import { ownerOptions } from "@/lib/employees";
 
 export const dynamic = "force-dynamic";
 
@@ -19,32 +14,41 @@ export default async function DealsPage({
 }) {
   const sp = await searchParams;
 
-  const deals = await prisma.deal.findMany({
-    where: {
-      ...(sp.businessType ? { businessType: sp.businessType } : {}),
-      ...(sp.owner ? { owner: sp.owner } : {}),
-      ...(sp.phase ? { phase: sp.phase } : {}),
-    },
-    include: { account: { select: { name: true } }, lineItems: true },
-    orderBy: [{ phase: "asc" }, { position: "asc" }],
-  });
+  const [deals, accounts, owners] = await Promise.all([
+    prisma.deal.findMany({
+      where: {
+        ...(sp.businessType ? { businessType: sp.businessType } : {}),
+        ...(sp.owner ? { owner: sp.owner } : {}),
+        ...(sp.phase ? { phase: sp.phase } : {}),
+      },
+      include: { lineItems: true },
+      orderBy: [{ phase: "asc" }, { position: "asc" }],
+    }),
+    prisma.account.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    ownerOptions(),
+  ]);
 
-  const ownerRows = await prisma.deal.findMany({
-    where: { owner: { not: null } },
-    select: { owner: true },
-    distinct: ["owner"],
-  });
-  const owners = ownerRows.map((r) => r.owner!).filter(Boolean).sort();
-
-  const rows = deals.map((d) => {
+  const rows: DealRow[] = deals.map((d) => {
     const mrr = linesMrr(d.lineItems);
     const oneTime = linesOneTime(d.lineItems);
     const acv = linesAcv(d.lineItems);
-    return { d, mrr, oneTime, acv, weightedAcv: Math.round(acv * d.probability) };
+    return {
+      id: d.id,
+      accountId: d.accountId,
+      businessType: d.businessType,
+      phase: d.phase,
+      customerized: d.customerized,
+      probability: d.probability,
+      owner: d.owner,
+      mrr,
+      oneTime,
+      acv,
+      weightedAcv: Math.round(acv * d.probability),
+    };
   });
 
   const totalWeighted = rows
-    .filter((r) => r.d.phase !== "失注" && r.d.phase !== "保留")
+    .filter((r) => r.phase !== "失注" && r.phase !== "保留")
     .reduce((s, r) => s + r.weightedAcv, 0);
 
   return (
@@ -55,6 +59,7 @@ export default async function DealsPage({
           <span className="text-slate-500">{deals.length} 件</span>
           <span className="ml-4 text-slate-500">加重ACV合計</span>
           <span className="ml-1 font-bold text-emerald-700">{formatYen(totalWeighted)}</span>
+          <span className="ml-4 text-xs text-slate-400">セルを直接編集して保存できます（金額は明細から自動算出）</span>
         </div>
         <Link
           href="/deals/new"
@@ -64,61 +69,8 @@ export default async function DealsPage({
         </Link>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-auto p-6">
-        <table className="w-full text-sm border-collapse">
-          <thead>
-            <tr className="text-left text-slate-500 border-b border-slate-200">
-              <th className="py-2 pr-4 font-medium">顧客企業</th>
-              <th className="py-2 pr-4 font-medium">事業区分</th>
-              <th className="py-2 pr-4 font-medium">フェーズ</th>
-              <th className="py-2 pr-4 font-medium text-right">確度</th>
-              <th className="py-2 pr-4 font-medium text-right">月額</th>
-              <th className="py-2 pr-4 font-medium text-right">単発</th>
-              <th className="py-2 pr-4 font-medium text-right">ACV</th>
-              <th className="py-2 pr-4 font-medium text-right">加重ACV</th>
-              <th className="py-2 pr-4 font-medium">担当者</th>
-              <th className="py-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(({ d, mrr, oneTime, acv, weightedAcv }) => (
-              <tr key={d.id} className="border-b border-slate-100 hover:bg-slate-50">
-                <td className="py-2 pr-4 font-medium">{d.account?.name ?? "(未設定)"}</td>
-                <td className="py-2 pr-4 text-slate-600">{d.businessType}</td>
-                <td className="py-2 pr-4">
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className={`h-2 w-2 rounded-full ${PHASE_COLORS[d.phase as Phase] ?? "bg-slate-300"}`} />
-                    {d.phase}
-                  </span>
-                </td>
-                <td className="py-2 pr-4 text-right tabular-nums">{Math.round(d.probability * 100)}%</td>
-                <td className="py-2 pr-4 text-right tabular-nums text-slate-600">
-                  {mrr > 0 ? formatYen(mrr) : "—"}
-                </td>
-                <td className="py-2 pr-4 text-right tabular-nums text-slate-600">
-                  {oneTime > 0 ? formatYen(oneTime) : "—"}
-                </td>
-                <td className="py-2 pr-4 text-right tabular-nums text-slate-700">{formatYen(acv)}</td>
-                <td className="py-2 pr-4 text-right tabular-nums font-semibold text-emerald-700">
-                  {formatYen(weightedAcv)}
-                </td>
-                <td className="py-2 pr-4 text-slate-600">{d.owner ?? "—"}</td>
-                <td className="py-2 text-right">
-                  <Link href={`/deals/${d.id}`} className="text-emerald-600 hover:underline">
-                    詳細
-                  </Link>
-                </td>
-              </tr>
-            ))}
-            {deals.length === 0 && (
-              <tr>
-                <td colSpan={10} className="py-10 text-center text-slate-400">
-                  該当する商談がありません
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      <div className="flex-1 min-h-0 px-6 py-3">
+        <DealsTable rows={rows} accounts={accounts} owners={owners} />
       </div>
     </div>
   );
