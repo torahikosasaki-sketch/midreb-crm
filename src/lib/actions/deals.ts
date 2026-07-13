@@ -65,14 +65,15 @@ export async function updateDeal(id: string, fd: FormData) {
   revalidatePath("/deals");
   revalidatePath("/accounts");
   revalidatePath(`/deals/${id}`);
-  redirect("/deals");
+  redirect("/"); // 商談カンバンに戻る
 }
 
 export async function deleteDeal(id: string) {
   await prisma.deal.delete({ where: { id } });
   revalidatePath("/");
   revalidatePath("/deals");
-  redirect("/deals");
+  revalidatePath("/accounts");
+  redirect("/"); // 商談カンバンに戻る
 }
 
 /** カンバンのドラッグ移動。フェーズと並び順を更新 */
