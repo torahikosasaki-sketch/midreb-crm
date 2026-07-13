@@ -10,7 +10,6 @@ import {
   linesMrr,
   linesOneTime,
   linesAcv,
-  isContracted,
   bizTagClass,
   PHASE_COLORS,
   type Phase,
@@ -33,9 +32,9 @@ export default async function AccountDetailPage({
   if (!account) notFound();
 
   const owners = await ownerOptions(account.owner);
-  const contracts = account.deals.filter((d) => isContracted(d.phase));
+  const contracts = account.deals.filter((d) => d.customerized);
   const opportunities = account.deals.filter(
-    (d) => !isContracted(d.phase) && d.phase !== "失注" && d.phase !== "保留"
+    (d) => !d.customerized && d.phase !== "失注" && d.phase !== "保留"
   );
 
   const mrr = contracts.reduce((s, d) => s + linesMrr(d.lineItems), 0);

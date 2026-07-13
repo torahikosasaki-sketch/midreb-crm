@@ -72,7 +72,17 @@ async function main() {
       const offset = [-3, 0, 2, 7, -1][di % 5];
       nextAction = new Date(now.getTime() + offset * dayMs);
     }
-    const phase = di === 0 ? "運用中" : String(dl.phase ?? "初回接触");
+    // 旧フェーズ名を新フェーズ名へ変換
+    const remap: Record<string, string> = {
+      提案: "提案済み",
+      条件調整: "口頭受注",
+      契約: "契約締結済み",
+      オンボーディング: "契約締結済み",
+      運用中: "契約締結済み",
+    };
+    const rawPhase = di === 0 ? "契約締結済み" : String(dl.phase ?? "初回接触");
+    const phase = remap[rawPhase] ?? rawPhase;
+    const customerized = phase === "契約締結済み";
     const probability = di === 0 ? 1.0 : Number(dl.probability ?? 0);
 
     const expected = Number(dl.expectedRevenue ?? 0);
@@ -81,6 +91,7 @@ async function main() {
         accountId: accountIdByName.get(String(dl.accountName)) ?? null,
         businessType: String(dl.businessType ?? "storeb"),
         phase,
+        customerized,
         probability,
         inflowChannel: s(dl.inflowChannel),
         agencyName: s(dl.agencyName),
@@ -98,7 +109,7 @@ async function main() {
     });
 
     // 明細（デモ用）: 月次定額を基本に、一部へ初期費用(単発)を付与。締結後は契約中/一部解約。
-    const contracted = ["契約", "オンボーディング", "運用中"].includes(phase);
+    const contracted = customerized;
     const monthly = Math.max(50000, Math.round(expected / 12 / 10000) * 10000);
     const svc = s(dl.services)?.split(/[,、]/)[0]?.trim() || "運用支援";
     let lpos = 0;
@@ -111,9 +122,9 @@ async function main() {
         quantity: 1,
         contractStart: contracted ? new Date(now.getTime() - 30 * dayMs) : null,
         contractEnd: contracted ? new Date(now.getTime() + 335 * dayMs) : null,
-        // 運用中の1件だけ解約デモ
-        status: phase === "運用中" && di % 4 === 0 ? "解約" : "契約中",
-        churnDate: phase === "運用中" && di % 4 === 0 ? new Date(now.getTime() - 5 * dayMs) : null,
+        // 契約締結済みの1件だけ解約デモ
+        status: contracted && di % 4 === 0 ? "解約" : "契約中",
+        churnDate: contracted && di % 4 === 0 ? new Date(now.getTime() - 5 * dayMs) : null,
         position: lpos++,
       },
     });

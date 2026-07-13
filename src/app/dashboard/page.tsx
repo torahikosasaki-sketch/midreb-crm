@@ -3,12 +3,11 @@ import { prisma } from "@/lib/prisma";
 import {
   formatYen,
   BUSINESS_TYPES,
-  PRE_CONTRACT_PHASES,
+  ACTIVE_PHASES,
   PHASE_COLORS,
   linesMrr,
   linesOneTime,
   linesAcv,
-  isContracted,
   type Phase,
 } from "@/lib/enums";
 import { PhaseFunnel, BizPie, MonthlyBars, OwnerBars } from "@/components/DashboardCharts";
@@ -42,7 +41,7 @@ export default async function DashboardPage() {
       oneTime,
       acv,
       weightedAcv: Math.round(acv * d.probability),
-      contracted: isContracted(d.phase),
+      contracted: d.customerized,
     };
   });
 
@@ -67,7 +66,7 @@ export default async function DashboardPage() {
   const overdue = pipeline.filter((f) => f.d.nextActionDate && f.d.nextActionDate < today).length;
 
   // フェーズ別ファネル（締結前）
-  const phaseData = PRE_CONTRACT_PHASES.map((p) => {
+  const phaseData = ACTIVE_PHASES.map((p) => {
     const rows = pipeline.filter((f) => f.d.phase === p);
     return { phase: p, count: rows.length, weighted: rows.reduce((s, f) => s + f.weightedAcv, 0) };
   });

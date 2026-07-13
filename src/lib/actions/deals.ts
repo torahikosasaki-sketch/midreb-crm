@@ -38,24 +38,32 @@ function dealDataFromForm(fd: FormData) {
 
 export async function createDeal(fd: FormData) {
   const data = dealDataFromForm(fd);
+  const customerize = fd.get("customerize") === "1";
   // 末尾に並べる
   const max = await prisma.deal.aggregate({
     _max: { position: true },
     where: { phase: data.phase },
   });
   const deal = await prisma.deal.create({
-    data: { ...data, position: (max._max.position ?? 0) + 1 },
+    data: { ...data, customerized: customerize, position: (max._max.position ?? 0) + 1 },
   });
   revalidatePath("/");
   revalidatePath("/deals");
+  revalidatePath("/accounts");
   redirect(`/deals/${deal.id}`);
 }
 
 export async function updateDeal(id: string, fd: FormData) {
   const data = dealDataFromForm(fd);
-  await prisma.deal.update({ where: { id }, data });
+  const customerize = fd.get("customerize") === "1";
+  // 顧客化は「はい」を選んだときだけ true にする（既存の顧客化状態は保持）
+  await prisma.deal.update({
+    where: { id },
+    data: customerize ? { ...data, customerized: true } : data,
+  });
   revalidatePath("/");
   revalidatePath("/deals");
+  revalidatePath("/accounts");
   revalidatePath(`/deals/${id}`);
   redirect("/deals");
 }

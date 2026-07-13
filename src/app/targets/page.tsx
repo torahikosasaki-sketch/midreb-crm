@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { formatYen, linesMrr, POST_CONTRACT_PHASES } from "@/lib/enums";
+import { formatYen, linesMrr } from "@/lib/enums";
 import { createTarget, deleteTarget } from "@/lib/actions/targets";
 import { SubmitButton } from "@/components/SubmitButton";
 
@@ -43,7 +43,7 @@ export default async function TargetsPage() {
   const [targets, contractedDeals, weekly] = await Promise.all([
     prisma.target.findMany({ orderBy: { label: "asc" } }),
     prisma.deal.findMany({
-      where: { phase: { in: POST_CONTRACT_PHASES as string[] } },
+      where: { customerized: true },
       select: { accountId: true, lineItems: true },
     }),
     prisma.weeklyProgress.findMany({ select: { videoPosts: true, videoPosters: true } }),
@@ -65,8 +65,8 @@ export default async function TargetsPage() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
         {[
-          { label: "月間GMV（運用中）", value: formatYen(gmvActual) },
-          { label: "セラー数（運用中）", value: sellerActual.toLocaleString("ja-JP") },
+          { label: "月間GMV（契約顧客）", value: formatYen(gmvActual) },
+          { label: "セラー数（契約顧客）", value: sellerActual.toLocaleString("ja-JP") },
           { label: "クリエイター数", value: creatorActual.toLocaleString("ja-JP") },
           { label: "制作本数", value: productionActual.toLocaleString("ja-JP") },
         ].map((c) => (

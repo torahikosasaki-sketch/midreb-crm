@@ -13,7 +13,7 @@ export default async function HomePage({
 }) {
   const sp = await searchParams;
 
-  // カンバンは締結前の商談＋受注(契約)/保留/失注のみ。運用中などの契約後は顧客側で管理。
+  // カンバンは全フェーズ（契約締結済みもそのまま配置）。顧客化した商談は顧客ページにも反映される。
   const deals = await prisma.deal.findMany({
     where: {
       phase: { in: KANBAN_PHASES as string[] },

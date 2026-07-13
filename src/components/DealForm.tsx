@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BUSINESS_TYPES,
   PHASES,
   CONTRACT_STATUSES,
   CONTRACT_TYPES,
+  CONTRACTED_PHASE,
   PHASE_DEFAULT_PROBABILITY,
   type Phase,
 } from "@/lib/enums";
@@ -31,6 +32,7 @@ export type DealInitial = {
   contractType: string | null;
   contractLink: string | null;
   memo: string | null;
+  customerized?: boolean;
 };
 
 export function DealForm({
@@ -49,9 +51,31 @@ export function DealForm({
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>((initial?.phase as Phase) ?? "初回接触");
   const [probability, setProbability] = useState<number>(initial?.probability ?? 0.1);
+  const [showCustomerize, setShowCustomerize] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const customerizeRef = useRef<HTMLInputElement>(null);
+  const decidedRef = useRef(false);
+
+  // 契約締結済みに変更して保存する際、まだ顧客化していなければ確認ポップアップを出す
+  const needsCustomerizePrompt = phase === CONTRACTED_PHASE && !initial?.customerized;
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    if (needsCustomerizePrompt && !decidedRef.current) {
+      e.preventDefault();
+      setShowCustomerize(true);
+    }
+  }
+
+  function decideCustomerize(yes: boolean) {
+    if (customerizeRef.current) customerizeRef.current.value = yes ? "1" : "0";
+    decidedRef.current = true;
+    setShowCustomerize(false);
+    formRef.current?.requestSubmit();
+  }
 
   return (
-    <form action={action} className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl">
+    <form ref={formRef} action={action} onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl">
+      <input ref={customerizeRef} type="hidden" name="customerize" defaultValue="0" />
       <Field label="顧客企業">
         <select
           name="accountId"
@@ -153,6 +177,33 @@ export function DealForm({
           キャンセル
         </Button>
       </div>
+
+      {showCustomerize && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="text-base font-semibold text-slate-800">この商談を顧客化しますか？</h3>
+            <p className="mt-2 text-sm text-slate-500">
+              「はい」を選ぶと顧客ページに反映されます。商談は「契約締結済み」フェーズにそのまま残ります。
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => decideCustomerize(false)}
+                className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                いいえ
+              </button>
+              <button
+                type="button"
+                onClick={() => decideCustomerize(true)}
+                className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+              >
+                はい
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </form>
   );
 }

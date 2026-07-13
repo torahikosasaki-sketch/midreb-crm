@@ -42,6 +42,7 @@ model Deal {
   accountId          String?
   businessType       String // 事業区分
   phase              String       @default("初回接触") // フェーズ
+  customerized       Boolean      @default(false) // 顧客化済み（契約締結済みで顧客ページに反映）
   probability        Float        @default(0) // 確度 (0-1)
   inflowChannel      String? // 流入経路
   agencyName         String? // 代理店名

@@ -6,7 +6,7 @@ import { DealForm, type DealInitial } from "@/components/DealForm";
 import { DeleteButton } from "@/components/DeleteButton";
 import { ActivityLog } from "@/components/ActivityLog";
 import { LineItemEditor, type LineItem } from "@/components/LineItemEditor";
-import { formatYen, linesMrr, linesOneTime, linesAcv, isContracted } from "@/lib/enums";
+import { formatYen, linesMrr, linesOneTime, linesAcv } from "@/lib/enums";
 import { ownerOptions } from "@/lib/employees";
 
 export const dynamic = "force-dynamic";
@@ -61,6 +61,7 @@ export default async function DealDetailPage({
     accountId: deal.accountId,
     businessType: deal.businessType,
     phase: deal.phase,
+    customerized: deal.customerized,
     probability: deal.probability,
     inflowChannel: deal.inflowChannel,
     agencyName: deal.agencyName,
@@ -78,7 +79,7 @@ export default async function DealDetailPage({
   const mrr = linesMrr(lineItems);
   const oneTime = linesOneTime(lineItems);
   const acv = linesAcv(lineItems);
-  const contracted = isContracted(deal.phase);
+  const contracted = deal.customerized;
 
   return (
     <div className="p-6 max-w-4xl">

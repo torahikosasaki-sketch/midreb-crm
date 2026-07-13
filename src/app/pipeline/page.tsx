@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { formatYen, BUSINESS_TYPES, PRE_CONTRACT_PHASES, linesAcv } from "@/lib/enums";
+import { formatYen, BUSINESS_TYPES, linesAcv } from "@/lib/enums";
 import { MonthlyChart, type MonthRow } from "@/components/MonthlyChart";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +12,7 @@ function monthKey(d: Date | null): string {
 export default async function PipelinePage() {
   // 締結前の商談を、受注予定日の月 × 事業区分で加重ACV集計
   const deals = await prisma.deal.findMany({
-    where: { phase: { in: PRE_CONTRACT_PHASES as string[] } },
+    where: { customerized: false, phase: { notIn: ["失注", "保留"] } },
     include: { lineItems: true },
   });
 

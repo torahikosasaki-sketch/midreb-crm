@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { formatYen, linesMrr, linesOneTime, linesAcv, isContracted } from "@/lib/enums";
+import { formatYen, linesMrr, linesOneTime, linesAcv } from "@/lib/enums";
 import { AccountsExplorer, type AccountRow } from "@/components/AccountsExplorer";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +21,7 @@ export default async function AccountsPage() {
       let churnMrr = 0;
 
       for (const d of a.deals) {
-        if (isContracted(d.phase)) {
+        if (d.customerized) {
           mrr += linesMrr(d.lineItems);
           oneTime += linesOneTime(d.lineItems);
           contracts += 1;

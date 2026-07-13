@@ -22,49 +22,40 @@ export function bizTagClass(tag: string): string {
   return BUSINESS_TYPE_COLORS[tag] ?? "bg-slate-100 text-slate-600";
 }
 
-/** 商談フェーズ（標準フロー）。order はカンバン列の並び順 */
+/** 商談フェーズ（標準フロー）。順序はカンバン列の並び順 */
 export const PHASES = [
   "初回接触",
-  "提案",
-  "条件調整",
-  "契約",
-  "オンボーディング",
-  "運用中",
-  "保留",
+  "提案済み",
+  "口頭受注",
+  "契約書レビュー中",
+  "契約締結済み",
   "失注",
+  "保留",
 ] as const;
 export type Phase = (typeof PHASES)[number];
 
-/** 進行中（パイプライン）とみなすフェーズ。失注/保留は除外 */
+/** 契約締結済みフェーズ（顧客化の対象） */
+export const CONTRACTED_PHASE: Phase = "契約締結済み";
+
+/** 進行中とみなすフェーズ。失注/保留は除外 */
 export const ACTIVE_PHASES: Phase[] = [
   "初回接触",
-  "提案",
-  "条件調整",
-  "契約",
-  "オンボーディング",
-  "運用中",
+  "提案済み",
+  "口頭受注",
+  "契約書レビュー中",
+  "契約締結済み",
 ];
 
-/** 締結前（商談パイプライン）フェーズ */
-export const PRE_CONTRACT_PHASES: Phase[] = ["初回接触", "提案", "条件調整"];
-
-/** 締結後（顧客の契約）フェーズ */
-export const POST_CONTRACT_PHASES: Phase[] = ["契約", "オンボーディング", "運用中"];
-
-/** カンバン（商談）に表示するフェーズ列。オンボーディング/運用中は顧客側で管理 */
+/** カンバン（商談）に表示するフェーズ列。契約締結済みもそのまま配置する */
 export const KANBAN_PHASES: Phase[] = [
   "初回接触",
-  "提案",
-  "条件調整",
-  "契約",
+  "提案済み",
+  "口頭受注",
+  "契約書レビュー中",
+  "契約締結済み",
   "保留",
   "失注",
 ];
-
-/** 契約締結後（＝顧客の契約）か */
-export function isContracted(phase: string): boolean {
-  return (POST_CONTRACT_PHASES as string[]).includes(phase);
-}
 
 /** 課金タイプ */
 export const BILLING_TYPES = ["月次定額", "単発"] as const;
@@ -101,25 +92,23 @@ export function linesAcv(lines: LineLike[]): number {
 /** フェーズごとの確度デフォルト（手入力で上書き可） */
 export const PHASE_DEFAULT_PROBABILITY: Record<Phase, number> = {
   初回接触: 0.1,
-  提案: 0.3,
-  条件調整: 0.5,
-  契約: 0.8,
-  オンボーディング: 0.9,
-  運用中: 1.0,
-  保留: 0.1,
+  提案済み: 0.3,
+  口頭受注: 0.6,
+  契約書レビュー中: 0.8,
+  契約締結済み: 1.0,
   失注: 0,
+  保留: 0.1,
 };
 
 /** カンバン列の色（Tailwind クラス断片） */
 export const PHASE_COLORS: Record<Phase, string> = {
   初回接触: "bg-slate-400",
-  提案: "bg-teal-500",
-  条件調整: "bg-amber-500",
-  契約: "bg-violet-500",
-  オンボーディング: "bg-emerald-500",
-  運用中: "bg-green-600",
-  保留: "bg-zinc-400",
+  提案済み: "bg-teal-500",
+  口頭受注: "bg-cyan-500",
+  契約書レビュー中: "bg-amber-500",
+  契約締結済み: "bg-emerald-500",
   失注: "bg-rose-500",
+  保留: "bg-zinc-400",
 };
 
 export const CONTRACT_STATUSES = [
