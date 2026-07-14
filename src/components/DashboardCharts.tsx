@@ -19,11 +19,12 @@ const yen = (v: number) => formatYen(Number(v) || 0);
 const man = (v: number) => (v >= 10000 ? `${Math.round(v / 10000)}万` : String(v));
 
 const PHASE_HEX: Record<string, string> = {
-  初回接触: "#94a3b8",
+  初回商談予定: "#94a3b8",
+  初回商談済み: "#0ea5e9",
   提案済み: "#14b8a6",
   口頭受注: "#06b6d4",
   契約書レビュー中: "#f59e0b",
-  契約締結済み: "#10b981",
+  受注: "#10b981",
 };
 
 const BIZ_HEX = ["#059669", "#14b8a6", "#8b5cf6", "#f59e0b", "#f43f5e", "#94a3b8"];

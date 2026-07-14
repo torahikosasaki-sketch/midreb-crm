@@ -12,8 +12,13 @@ import {
   linesAcv,
   bizTagClass,
   PHASE_COLORS,
+  LEAD_STATUS_COLORS,
   type Phase,
 } from "@/lib/enums";
+
+function fmtDateTime(d: Date): string {
+  return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +31,17 @@ export default async function AccountDetailPage({
   const account = await prisma.account.findUnique({
     where: { id },
     include: {
-      deals: { include: { lineItems: true }, orderBy: { createdAt: "desc" } },
+      deals: {
+        include: { lineItems: true, activities: { orderBy: { occurredAt: "desc" } } },
+        orderBy: { createdAt: "desc" },
+      },
+      leads: {
+        include: {
+          activities: { orderBy: { occurredAt: "desc" } },
+          deal: { select: { id: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
   if (!account) notFound();
@@ -36,6 +51,16 @@ export default async function AccountDetailPage({
   const opportunities = account.deals.filter(
     (d) => !d.customerized && d.phase !== "失注" && d.phase !== "保留"
   );
+
+  // 対応履歴: リード + 商談の活動ログを時系列でマージ
+  const history = [
+    ...account.leads.flatMap((l) =>
+      l.activities.map((a) => ({ ...a, ctx: `リード` as const }))
+    ),
+    ...account.deals.flatMap((d) =>
+      d.activities.map((a) => ({ ...a, ctx: `商談` as const }))
+    ),
+  ].sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime());
 
   const mrr = contracts.reduce((s, d) => s + linesMrr(d.lineItems), 0);
   const oneTime = contracts.reduce((s, d) => s + linesOneTime(d.lineItems), 0);
@@ -160,12 +185,20 @@ export default async function AccountDetailPage({
 
       {/* 商談（締結前） */}
       <section className="mb-8">
-        <h2 className="text-sm font-semibold text-slate-700 mb-2">
-          商談（締結前）<span className="text-slate-400 font-normal ml-1">{opportunities.length}</span>
-          <span className="ml-3 text-xs font-normal text-slate-500">
-            パイプライン加重 {formatYen(pipeline)}
-          </span>
-        </h2>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-sm font-semibold text-slate-700">
+            商談（締結前）<span className="text-slate-400 font-normal ml-1">{opportunities.length}</span>
+            <span className="ml-3 text-xs font-normal text-slate-500">
+              パイプライン加重 {formatYen(pipeline)}
+            </span>
+          </h2>
+          <Link
+            href={`/deals/new?accountId=${id}`}
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+          >
+            ＋ 商談を直接追加
+          </Link>
+        </div>
         {opportunities.length === 0 ? (
           <p className="text-sm text-slate-400">進行中の商談はありません</p>
         ) : (
@@ -185,6 +218,73 @@ export default async function AccountDetailPage({
               </Link>
             ))}
           </div>
+        )}
+      </section>
+
+      {/* リード */}
+      <section className="mb-8">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-sm font-semibold text-slate-700">
+            リード<span className="text-slate-400 font-normal ml-1">{account.leads.length}</span>
+          </h2>
+          <Link
+            href={`/leads/new?accountId=${id}`}
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+          >
+            ＋ リードを追加
+          </Link>
+        </div>
+        {account.leads.length === 0 ? (
+          <p className="text-sm text-slate-400">リードはありません</p>
+        ) : (
+          <div className="rounded-lg border border-slate-200 bg-white divide-y divide-slate-100">
+            {account.leads.map((l) => (
+              <Link
+                key={l.id}
+                href={`/leads/${l.id}`}
+                className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 text-sm"
+              >
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                    LEAD_STATUS_COLORS[l.status] ?? "bg-slate-100 text-slate-600"
+                  }`}
+                >
+                  {l.status}
+                </span>
+                <span className="text-slate-500">{l.source ?? "—"}</span>
+                <span className="text-xs text-slate-400">接触 {l.activities.length} 回</span>
+                {l.deal && <span className="text-xs text-emerald-600">商談化済み</span>}
+                <span className="ml-auto text-xs text-slate-500">{l.owner ?? "—"}</span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* 対応履歴 */}
+      <section className="mb-8">
+        <h2 className="text-sm font-semibold text-slate-700 mb-2">
+          対応履歴<span className="text-slate-400 font-normal ml-1">{history.length}</span>
+        </h2>
+        {history.length === 0 ? (
+          <p className="text-sm text-slate-400">対応履歴はありません</p>
+        ) : (
+          <ol className="relative border-l border-slate-200 ml-2">
+            {history.slice(0, 30).map((a) => (
+              <li key={a.id} className="mb-3 ml-4">
+                <span className="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white" />
+                <div className="flex items-center gap-2">
+                  <span className="rounded px-1.5 py-0.5 text-[11px] font-medium bg-slate-100 text-slate-600">
+                    {a.ctx}
+                  </span>
+                  <span className="text-[11px] font-medium text-slate-500">{a.type}</span>
+                  <time className="text-xs text-slate-400">{fmtDateTime(a.occurredAt)}</time>
+                  {a.owner && <span className="text-xs text-slate-500">{a.owner}</span>}
+                </div>
+                {a.content && <p className="mt-0.5 text-sm text-slate-700">{a.content}</p>}
+              </li>
+            ))}
+          </ol>
         )}
       </section>
 

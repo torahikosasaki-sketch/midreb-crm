@@ -41,15 +41,17 @@ export function DealForm({
   owners,
   initial,
   submitLabel,
+  leadId,
 }: {
   action: (fd: FormData) => void | Promise<void>;
   accounts: AccountOption[];
   owners: string[];
   initial?: DealInitial;
   submitLabel: string;
+  leadId?: string; // 商談化/リード紐付け時に渡す
 }) {
   const router = useRouter();
-  const [phase, setPhase] = useState<Phase>((initial?.phase as Phase) ?? "初回接触");
+  const [phase, setPhase] = useState<Phase>((initial?.phase as Phase) ?? "初回商談予定");
   const [probability, setProbability] = useState<number>(initial?.probability ?? 0.1);
   const [showCustomerize, setShowCustomerize] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
@@ -76,6 +78,7 @@ export function DealForm({
   return (
     <form ref={formRef} action={action} onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl">
       <input ref={customerizeRef} type="hidden" name="customerize" defaultValue="0" />
+      {leadId && <input type="hidden" name="leadId" value={leadId} />}
       <Field label="顧客企業">
         <select
           name="accountId"

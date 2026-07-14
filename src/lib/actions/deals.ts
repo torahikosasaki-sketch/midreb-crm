@@ -20,7 +20,7 @@ function dealDataFromForm(fd: FormData) {
   return {
     accountId: str(fd, "accountId"),
     businessType: str(fd, "businessType") ?? "storeb",
-    phase: str(fd, "phase") ?? "初回接触",
+    phase: str(fd, "phase") ?? "初回商談予定",
     probability: Number(str(fd, "probability") ?? "0"),
     inflowChannel: str(fd, "inflowChannel"),
     agencyName: str(fd, "agencyName"),
@@ -39,13 +39,19 @@ function dealDataFromForm(fd: FormData) {
 export async function createDeal(fd: FormData) {
   const data = dealDataFromForm(fd);
   const customerize = fd.get("customerize") === "1";
+  const leadId = str(fd, "leadId"); // 商談化/リード紐付け（任意）
   // 末尾に並べる
   const max = await prisma.deal.aggregate({
     _max: { position: true },
     where: { phase: data.phase },
   });
   const deal = await prisma.deal.create({
-    data: { ...data, customerized: customerize, position: (max._max.position ?? 0) + 1 },
+    data: {
+      ...data,
+      customerized: customerize,
+      ...(leadId ? { leadId } : {}),
+      position: (max._max.position ?? 0) + 1,
+    },
   });
   revalidatePath("/");
   revalidatePath("/deals");

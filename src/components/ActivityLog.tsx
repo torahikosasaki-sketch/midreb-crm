@@ -32,15 +32,18 @@ function fmt(iso: string): string {
 
 export function ActivityLog({
   dealId,
+  leadId,
   activities,
   owners,
 }: {
-  dealId: string;
+  dealId?: string;
+  leadId?: string;
   activities: ActivityItem[];
   owners: string[];
 }) {
   const formRef = useRef<HTMLFormElement>(null);
-  const create = createActivity.bind(null, dealId);
+  const target = { dealId, leadId };
+  const create = createActivity.bind(null, target);
 
   return (
     <div>
@@ -120,7 +123,7 @@ export function ActivityLog({
                 </span>
                 <time className="text-xs text-slate-400">{fmt(a.occurredAt)}</time>
                 {a.owner && <span className="text-xs text-slate-500">{a.owner}</span>}
-                <form action={deleteActivity.bind(null, a.id, dealId)} className="ml-auto">
+                <form action={deleteActivity.bind(null, a.id, target)} className="ml-auto">
                   <button
                     type="submit"
                     className="text-xs text-slate-400 hover:text-rose-600"

@@ -7,6 +7,7 @@ type NavItem = { href: string; label: string; icon: string; match?: string[] };
 
 const NAV: NavItem[] = [
   { href: "/dashboard", label: "ダッシュボード", icon: "grid" },
+  { href: "/leads", label: "リード", icon: "inbox", match: ["/leads"] },
   { href: "/", label: "商談", icon: "kanban", match: ["/", "/deals"] },
   { href: "/accounts", label: "顧客", icon: "building" },
   { href: "/progress", label: "案件進捗管理", icon: "chart" },
@@ -94,6 +95,13 @@ function Icon({ name, active }: { name: string; active: boolean }) {
         <svg {...common}>
           <rect x="3" y="3" width="18" height="18" rx="2" />
           <path d="M8 3v12M16 3v8" />
+        </svg>
+      );
+    case "inbox":
+      return (
+        <svg {...common}>
+          <path d="M22 12h-6l-2 3h-4l-2-3H2" />
+          <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
         </svg>
       );
     case "building":

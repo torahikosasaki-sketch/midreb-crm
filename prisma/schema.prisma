@@ -33,6 +33,26 @@ model Account {
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
   deals            Deal[]
+  leads            Lead[]
+}
+
+/// リード（商談化前の見込み。企業必須）
+model Lead {
+  id             String     @id @default(cuid())
+  account        Account    @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  accountId      String // 企業（必須）
+  source         String? // リードソース／流入経路
+  status         String     @default("未接触") // 未接触/初回接触済み/2回目接触済み/3回目接触済み/商談化/対象外・追客終了
+  owner          String? // 担当（インサイドセールス）
+  nextActionDate DateTime? // 次回アクション日
+  memo           String?
+  deal           Deal? // 商談化で生成される商談（1:1）
+  activities     Activity[]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@index([accountId])
+  @@index([status])
 }
 
 /// 商談（営業案件・主役エンティティ）
@@ -41,8 +61,10 @@ model Deal {
   account            Account?     @relation(fields: [accountId], references: [id], onDelete: SetNull)
   accountId          String?
   businessType       String // 事業区分
-  phase              String       @default("初回接触") // フェーズ
-  customerized       Boolean      @default(false) // 顧客化済み（契約締結済みで顧客ページに反映）
+  phase              String       @default("初回商談予定") // フェーズ
+  customerized       Boolean      @default(false) // 顧客化済み（受注で顧客ページに反映）
+  lead               Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  leadId             String?      @unique // 生成元リード（nullは企業から直接作成）
   probability        Float        @default(0) // 確度 (0-1)
   inflowChannel      String? // 流入経路
   agencyName         String? // 代理店名
@@ -85,11 +107,13 @@ model DealLineItem {
   @@index([dealId])
 }
 
-/// 活動ログ（架電・MTG・提案送付などの行動履歴）
+/// 活動ログ（架電・MTG・提案送付などの行動履歴）。商談 or リードに紐づく
 model Activity {
   id         String   @id @default(cuid())
-  deal       Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
-  dealId     String
+  deal       Deal?    @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  dealId     String?
+  lead       Lead?    @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  leadId     String?
   type       String // 種別 (架電/MTG/提案送付/その他)
   content    String? // 内容
   occurredAt DateTime @default(now()) // 発生日時
@@ -97,6 +121,7 @@ model Activity {
   createdAt  DateTime @default(now())
 
   @@index([dealId])
+  @@index([leadId])
 }
 
 /// 販売単位（ブランド×商品）。進捗管理の主軸マスター

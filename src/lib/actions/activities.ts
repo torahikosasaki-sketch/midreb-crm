@@ -10,21 +10,30 @@ function str(fd: FormData, key: string): string | null {
   return s === "" ? null : s;
 }
 
-export async function createActivity(dealId: string, fd: FormData) {
+export type ActivityTarget = { dealId?: string; leadId?: string };
+
+function revalidateTarget(t: ActivityTarget) {
+  if (t.dealId) revalidatePath(`/deals/${t.dealId}`);
+  if (t.leadId) revalidatePath(`/leads/${t.leadId}`);
+  revalidatePath("/accounts");
+}
+
+export async function createActivity(target: ActivityTarget, fd: FormData) {
   const occurred = str(fd, "occurredAt");
   await prisma.activity.create({
     data: {
-      dealId,
+      dealId: target.dealId ?? null,
+      leadId: target.leadId ?? null,
       type: str(fd, "type") ?? "その他",
       content: str(fd, "content"),
       owner: str(fd, "owner"),
       occurredAt: occurred ? new Date(occurred) : new Date(),
     },
   });
-  revalidatePath(`/deals/${dealId}`);
+  revalidateTarget(target);
 }
 
-export async function deleteActivity(id: string, dealId: string) {
+export async function deleteActivity(id: string, target: ActivityTarget) {
   await prisma.activity.delete({ where: { id } });
-  revalidatePath(`/deals/${dealId}`);
+  revalidateTarget(target);
 }
