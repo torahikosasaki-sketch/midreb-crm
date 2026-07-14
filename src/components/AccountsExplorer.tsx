@@ -16,6 +16,8 @@ export type AccountRow = {
   oneTime: number;
   pipeline: number; // 拡大（締結前の商談）加重ACV
   contracts: number;
+  openDeals: number; // 進行中の商談数
+  leads: number; // 紐づくリード数
   activeServices: number;
   churnMrr: number;
 };
@@ -158,7 +160,7 @@ export function AccountsExplorer({ rows }: { rows: AccountRow[] }) {
                   {r.mrr > 0 ? formatYen(r.mrr) : "—"}
                 </span>
                 <span className="text-[11px] text-slate-400">
-                  契約 {r.contracts}・サービス {r.activeServices}
+                  リード {r.leads}・商談 {r.openDeals}・契約 {r.contracts}
                 </span>
               </div>
               <div className="mt-1 h-1.5 w-full max-w-xs rounded-full bg-slate-100 overflow-hidden">
