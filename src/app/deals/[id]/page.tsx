@@ -46,6 +46,7 @@ export default async function DealDetailPage({
     quantity: l.quantity,
     contractStart: ymd(l.contractStart),
     contractEnd: ymd(l.contractEnd),
+    serviceMonth: l.serviceMonth ? l.serviceMonth.toISOString().slice(0, 7) : null,
     status: l.status,
   }));
 

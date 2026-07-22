@@ -18,6 +18,12 @@ function date(fd: FormData, key: string): Date | null {
   return s ? new Date(s) : null;
 }
 
+/** "YYYY-MM" (月入力) をその月1日のUTC深夜Dateへ */
+function monthDate(fd: FormData, key: string): Date | null {
+  const s = str(fd, key);
+  return s ? new Date(`${s}-01T00:00:00.000Z`) : null;
+}
+
 function dataFromForm(fd: FormData) {
   const billingType = str(fd, "billingType") ?? "単発";
   const recurring = billingType === "月次定額";
@@ -29,6 +35,7 @@ function dataFromForm(fd: FormData) {
     quantity: Math.max(1, num(fd, "quantity") || 1),
     contractStart: recurring ? date(fd, "contractStart") : null,
     contractEnd: recurring ? date(fd, "contractEnd") : null,
+    serviceMonth: recurring ? null : monthDate(fd, "serviceMonth"),
     status,
     churnDate: recurring && status === "解約" ? date(fd, "churnDate") ?? new Date() : null,
   };

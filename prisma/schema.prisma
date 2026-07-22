@@ -98,6 +98,7 @@ model DealLineItem {
   quantity      Int       @default(1) // 数量
   contractStart DateTime? // 契約開始日（月次定額）
   contractEnd   DateTime? // 更新予定日（月次定額）
+  serviceMonth  DateTime? // 実施月（単発。売上計上月の1日を保存）
   status        String    @default("契約中") // 契約中 / 解約（月次定額）
   churnDate     DateTime? // 解約日
   position      Int       @default(0) // 行の並び順
