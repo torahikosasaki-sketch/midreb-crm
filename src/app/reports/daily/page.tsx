@@ -7,6 +7,7 @@ import {
   budgetConsumptionRate,
   effectiveDailyBudget,
   sumReports,
+  withWeeklyCreative,
   normalizeAnchor,
   periodRange,
   periodLabel,
@@ -42,13 +43,14 @@ export default async function DailyReportIndexPage({
     where: { status: "稼働中" },
     include: {
       dailyReports: { where: { reportDate: { gte: start, lt: end } } },
+      weeks: { select: { weekStart: true, videoPosts: true, liveCount: true } },
       account: { select: { name: true } },
     },
     orderBy: { createdAt: "asc" },
   });
 
   const rows = units.map((u) => {
-    const r = sumReports(u.dailyReports);
+    const r = withWeeklyCreative(sumReports(u.dailyReports), u.weeks, period, start, end);
     return {
       u,
       r,

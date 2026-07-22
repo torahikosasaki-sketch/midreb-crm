@@ -141,12 +141,63 @@ export function sumReports(rows: DailyReportLike[]): DailyReportLike {
   };
 }
 
-/** 直近count期間分のバケット（古い→新しい順）。each bucket は該当rowsをsumReportsで合算する */
+export type WeekProgressLike = {
+  weekStart: Date;
+  videoPosts?: number | null;
+  liveCount?: number | null;
+};
+
+/**
+ * 過去データ取り込み時のタイムゾーンずれ（UTC深夜でなく前日夕方などにずれたもの）を補正。
+ * 深夜(00:00 UTC)であればそのまま、そうでなければ次の深夜へ繰り上げる（常に手前にずれるため）。
+ */
+function ceilToUtcMidnight(d: Date): Date {
+  const day = 24 * 60 * 60 * 1000;
+  return new Date(Math.ceil(d.getTime() / day) * day);
+}
+
+/** 期間[start, end)に含まれる週次実績(WeeklyProgress)の動画投稿数・ライブ実施回数を合算 */
+export function weeklyCreativeTotals(
+  weeks: WeekProgressLike[],
+  start: Date,
+  end: Date
+): { videoPosts: number; liveCount: number; hasData: boolean } {
+  const matched = weeks.filter((w) => {
+    const normalized = ceilToUtcMidnight(w.weekStart);
+    return normalized >= start && normalized < end;
+  });
+  return {
+    videoPosts: matched.reduce((s, w) => s + (w.videoPosts ?? 0), 0),
+    liveCount: matched.reduce((s, w) => s + (w.liveCount ?? 0), 0),
+    hasData: matched.length > 0,
+  };
+}
+
+/**
+ * 案件進捗管理（週次実績 WeeklyProgress）に該当期間のデータがあれば、
+ * レポートのクリエイティブ指標（動画投稿数・ライブ実施回数）を自動的にそちらから反映する。
+ * 日次(period="day")は週次実績を1日単位に配分できないため対象外（日次入力のまま）。
+ */
+export function withWeeklyCreative<T extends DailyReportLike>(
+  data: T,
+  weeks: WeekProgressLike[],
+  period: Period,
+  start: Date,
+  end: Date
+): T {
+  if (period === "day") return data;
+  const wt = weeklyCreativeTotals(weeks, start, end);
+  if (!wt.hasData) return data;
+  return { ...data, videoPosts: wt.videoPosts, liveCount: wt.liveCount };
+}
+
+/** 直近count期間分のバケット（古い→新しい順）。each bucket は該当rowsをsumReportsで合算し、週次実績があれば自動反映する */
 export function recentBuckets(
   rows: (DailyReportLike & { reportDate: Date })[],
   period: Period,
   count: number,
-  anchor: Date = normalizeAnchor(period, ymdUtc(new Date()))
+  anchor: Date = normalizeAnchor(period, ymdUtc(new Date())),
+  weeks: WeekProgressLike[] = []
 ): { label: string; anchor: Date; data: DailyReportLike }[] {
   const buckets: { label: string; anchor: Date; data: DailyReportLike }[] = [];
   let cur = anchor;
@@ -157,6 +208,11 @@ export function recentBuckets(
   return buckets.map((b) => {
     const { start, end } = periodRange(period, b.anchor);
     const matched = rows.filter((r) => r.reportDate >= start && r.reportDate < end);
-    return { label: periodLabel(period, b.anchor), anchor: b.anchor, data: sumReports(matched) };
+    const summed = sumReports(matched);
+    return {
+      label: periodLabel(period, b.anchor),
+      anchor: b.anchor,
+      data: withWeeklyCreative(summed, weeks, period, start, end),
+    };
   });
 }

@@ -15,11 +15,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   const unit = await prisma.salesUnit.findUnique({
     where: { id },
-    include: { dailyReports: { orderBy: { reportDate: "asc" } }, account: { select: { name: true } } },
+    include: {
+      dailyReports: { orderBy: { reportDate: "asc" } },
+      weeks: { select: { weekStart: true, videoPosts: true, liveCount: true } },
+      account: { select: { name: true } },
+    },
   });
   if (!unit) return new Response("Not Found", { status: 404 });
 
-  const buckets = recentBuckets(unit.dailyReports, period, BUCKET_COUNT[period], anchor);
+  const buckets = recentBuckets(unit.dailyReports, period, BUCKET_COUNT[period], anchor, unit.weeks);
 
   const rows = buckets.map((b) => [
     b.label,

@@ -5,6 +5,7 @@ import {
   cpa,
   budgetConsumptionRate,
   sumReports,
+  withWeeklyCreative,
   normalizeAnchor,
   periodRange,
   ymdUtc,
@@ -24,13 +25,14 @@ export async function GET(request: Request) {
     where: { status: "稼働中" },
     include: {
       dailyReports: { where: { reportDate: { gte: start, lt: end } } },
+      weeks: { select: { weekStart: true, videoPosts: true, liveCount: true } },
       account: { select: { name: true } },
     },
     orderBy: { createdAt: "asc" },
   });
 
   const rows = units.map((u) => {
-    const r = sumReports(u.dailyReports);
+    const r = withWeeklyCreative(sumReports(u.dailyReports), u.weeks, period, start, end);
     return [
       u.productSku ?? unitBrandLabel(u),
       unitBrandLabel(u),

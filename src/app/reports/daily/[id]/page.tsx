@@ -7,6 +7,7 @@ import {
   cpa,
   budgetConsumptionRate,
   sumReports,
+  withWeeklyCreative,
   normalizeAnchor,
   periodRange,
   periodLabel,
@@ -46,21 +47,25 @@ export default async function DailyReportDetailPage({
 
   const unit = await prisma.salesUnit.findUnique({
     where: { id },
-    include: { dailyReports: { orderBy: { reportDate: "asc" } }, account: { select: { name: true } } },
+    include: {
+      dailyReports: { orderBy: { reportDate: "asc" } },
+      weeks: { select: { weekStart: true, videoPosts: true, liveCount: true } },
+      account: { select: { name: true } },
+    },
   });
   if (!unit) notFound();
 
   const reports = unit.dailyReports;
   const { start, end } = periodRange(period, anchor);
   const selectedRows = reports.filter((r) => r.reportDate >= start && r.reportDate < end);
-  const selected = sumReports(selectedRows);
+  const selected = withWeeklyCreative(sumReports(selectedRows), unit.weeks, period, start, end);
 
   const selRoi = roi(selected);
   const selCpa = cpa(selected);
   const selRate = budgetConsumptionRate(selected, unit.dailyAdBudget);
 
   // 直近N期間分の推移
-  const buckets = recentBuckets(reports, period, BUCKET_COUNT[period], anchor);
+  const buckets = recentBuckets(reports, period, BUCKET_COUNT[period], anchor, unit.weeks);
   const adChartData: DailyAdPoint[] = buckets.map((b) => ({
     day: b.label,
     広告費: b.data.adSpend ?? 0,
@@ -114,9 +119,18 @@ export default async function DailyReportDetailPage({
         <Kpi label="配送 売上個数" value={nz(selected.shippingQty)} />
         <Kpi label="配送 売上金額" value={selected.shippingAmount == null ? "—" : formatYen(selected.shippingAmount)} />
       </div>
-      {selectedRows.length === 0 && (
+      {selectedRows.length === 0 && selected.videoPosts == null && selected.liveCount == null && (
         <p className="print:hidden text-sm text-slate-400 -mt-6 mb-8">
           {periodLabel(period, anchor)} の記録はまだありません。
+          <Link href={`/progress/${id}`} className="text-emerald-600 hover:underline">
+            案件進捗管理
+          </Link>
+          から入力してください。
+        </p>
+      )}
+      {selectedRows.length === 0 && (selected.videoPosts != null || selected.liveCount != null) && (
+        <p className="print:hidden text-sm text-slate-400 -mt-6 mb-8">
+          動画投稿数・ライブ実施回数は案件進捗管理の週次実績から自動反映されています。広告・配送の実績は
           <Link href={`/progress/${id}`} className="text-emerald-600 hover:underline">
             案件進捗管理
           </Link>
@@ -143,7 +157,7 @@ export default async function DailyReportDetailPage({
             クリエイティブ推移（直近{BUCKET_COUNT[period]}{period === "day" ? "日" : period === "week" ? "週" : "ヶ月"}）
           </h2>
           <div className="rounded-lg border border-slate-200 bg-white p-4">
-            {reports.length === 0 ? (
+            {reports.length === 0 && unit.weeks.length === 0 ? (
               <p className="text-sm text-slate-400 py-10 text-center">記録がありません</p>
             ) : (
               <CreativeChart data={creativeChartData} />
