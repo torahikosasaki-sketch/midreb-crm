@@ -1,8 +1,19 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatYen } from "@/lib/enums";
-import { roi, cpa, budgetConsumptionRate, effectiveDailyBudget } from "@/lib/reports";
-import { ReportDatePicker } from "@/components/ReportDatePicker";
+import {
+  roi,
+  cpa,
+  budgetConsumptionRate,
+  effectiveDailyBudget,
+  sumReports,
+  normalizeAnchor,
+  periodRange,
+  periodLabel,
+  ymdUtc,
+  type Period,
+} from "@/lib/reports";
+import { ReportPeriodPicker } from "@/components/ReportPeriodPicker";
 import { PrintButton } from "@/components/PrintButton";
 
 export const dynamic = "force-dynamic";
@@ -17,42 +28,41 @@ function todayStr(): string {
 export default async function DailyReportIndexPage({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string }>;
+  searchParams: Promise<{ date?: string; period?: string }>;
 }) {
-  const { date } = await searchParams;
+  const { date, period: periodParam } = await searchParams;
+  const period: Period = periodParam === "week" || periodParam === "month" ? periodParam : "day";
   const dateStr = date ?? todayStr();
-  // "YYYY-MM-DD" は UTC 深夜として解釈されるため setHours(local) は使わない
-  const reportDate = new Date(dateStr);
+  const anchor = normalizeAnchor(period, dateStr);
+  const anchorStr = ymdUtc(anchor);
+  const { start, end } = periodRange(period, anchor);
 
   const units = await prisma.salesUnit.findMany({
     where: { status: "稼働中" },
-    include: { dailyReports: { where: { reportDate } } },
+    include: { dailyReports: { where: { reportDate: { gte: start, lt: end } } } },
     orderBy: { createdAt: "asc" },
   });
 
   const rows = units.map((u) => {
-    const r = u.dailyReports[0] ?? null;
+    const r = sumReports(u.dailyReports);
     return {
       u,
       r,
-      roi: r ? roi(r) : null,
-      cpa: r ? cpa(r) : null,
-      rate: r ? budgetConsumptionRate(r, u.dailyAdBudget) : null,
+      roi: roi(r),
+      cpa: cpa(r),
+      rate: budgetConsumptionRate(r, u.dailyAdBudget),
     };
   });
 
   // サマリ（合計から再計算。個別ROI等の平均は取らない）
-  const totalAdSpend = rows.reduce((s, x) => s + (x.r?.adSpend ?? 0), 0);
-  const totalGmv = rows.reduce((s, x) => s + (x.r?.adGmv ?? 0), 0);
-  const totalOrders = rows.reduce((s, x) => s + (x.r?.orderCount ?? 0), 0);
-  const totalBudget = rows.reduce(
-    (s, x) => s + (x.r ? effectiveDailyBudget(x.r, x.u.dailyAdBudget) ?? 0 : x.u.dailyAdBudget ?? 0),
-    0
-  );
-  const totalVideoPosts = rows.reduce((s, x) => s + (x.r?.videoPosts ?? 0), 0);
-  const totalLiveCount = rows.reduce((s, x) => s + (x.r?.liveCount ?? 0), 0);
-  const totalShippingQty = rows.reduce((s, x) => s + (x.r?.shippingQty ?? 0), 0);
-  const totalShippingAmount = rows.reduce((s, x) => s + (x.r?.shippingAmount ?? 0), 0);
+  const totalAdSpend = rows.reduce((s, x) => s + (x.r.adSpend ?? 0), 0);
+  const totalGmv = rows.reduce((s, x) => s + (x.r.adGmv ?? 0), 0);
+  const totalOrders = rows.reduce((s, x) => s + (x.r.orderCount ?? 0), 0);
+  const totalBudget = rows.reduce((s, x) => s + (effectiveDailyBudget(x.r, x.u.dailyAdBudget) ?? 0), 0);
+  const totalVideoPosts = rows.reduce((s, x) => s + (x.r.videoPosts ?? 0), 0);
+  const totalLiveCount = rows.reduce((s, x) => s + (x.r.liveCount ?? 0), 0);
+  const totalShippingQty = rows.reduce((s, x) => s + (x.r.shippingQty ?? 0), 0);
+  const totalShippingAmount = rows.reduce((s, x) => s + (x.r.shippingAmount ?? 0), 0);
   const totalRoi = totalAdSpend > 0 ? Math.round((totalGmv / totalAdSpend) * 1000) / 10 : null;
   const totalCpa = totalOrders > 0 ? Math.round(totalAdSpend / totalOrders) : null;
   const totalRate = totalBudget > 0 ? Math.round((totalAdSpend / totalBudget) * 1000) / 10 : null;
@@ -67,10 +77,16 @@ export default async function DailyReportIndexPage({
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div>
           <h1 className="text-xl font-bold">日次進捗報告</h1>
-          <p className="text-sm text-slate-500">{dateStr} の実績（稼働中の販売単位）</p>
+          <p className="text-sm text-slate-500">{periodLabel(period, anchor)} の実績（稼働中の販売単位）</p>
         </div>
         <div className="flex items-center gap-2">
-          <ReportDatePicker date={dateStr} />
+          <ReportPeriodPicker date={anchorStr} period={period} />
+          <a
+            href={`/reports/daily/csv?date=${anchorStr}&period=${period}`}
+            className="print:hidden rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            CSV出力
+          </a>
           <PrintButton />
         </div>
       </div>
@@ -113,21 +129,24 @@ export default async function DailyReportIndexPage({
             {rows.map(({ u, r, roi: rRoi, cpa: rCpa, rate }) => (
               <tr key={u.id} className="border-b border-slate-100 hover:bg-slate-50">
                 <td className="py-2 px-3">
-                  <Link href={`/reports/daily/${u.id}?date=${dateStr}`} className="font-medium text-slate-800 hover:text-emerald-700 hover:underline">
+                  <Link
+                    href={`/reports/daily/${u.id}?date=${anchorStr}&period=${period}`}
+                    className="font-medium text-slate-800 hover:text-emerald-700 hover:underline"
+                  >
                     {u.productSku ?? u.brand}
                   </Link>
                   <div className="text-[11px] text-slate-400">{u.brand}</div>
                 </td>
-                <td className="py-2 px-3 text-right tabular-nums">{nz(r?.videoPosts)}</td>
-                <td className="py-2 px-3 text-right tabular-nums">{nz(r?.liveCount)}</td>
-                <td className="py-2 px-3 text-right tabular-nums">{r?.adSpend == null ? "—" : formatYen(r.adSpend)}</td>
-                <td className="py-2 px-3 text-right tabular-nums">{r?.adGmv == null ? "—" : formatYen(r.adGmv)}</td>
+                <td className="py-2 px-3 text-right tabular-nums">{nz(r.videoPosts)}</td>
+                <td className="py-2 px-3 text-right tabular-nums">{nz(r.liveCount)}</td>
+                <td className="py-2 px-3 text-right tabular-nums">{r.adSpend == null ? "—" : formatYen(r.adSpend)}</td>
+                <td className="py-2 px-3 text-right tabular-nums">{r.adGmv == null ? "—" : formatYen(r.adGmv)}</td>
                 <td className="py-2 px-3 text-right tabular-nums">{pct(rRoi)}</td>
-                <td className="py-2 px-3 text-right tabular-nums">{nz(r?.orderCount)}</td>
+                <td className="py-2 px-3 text-right tabular-nums">{nz(r.orderCount)}</td>
                 <td className="py-2 px-3 text-right tabular-nums">{rCpa == null ? "—" : formatYen(rCpa)}</td>
                 <td className="py-2 px-3 text-right tabular-nums">{pct(rate)}</td>
-                <td className="py-2 px-3 text-right tabular-nums">{nz(r?.shippingQty)}</td>
-                <td className="py-2 px-3 text-right tabular-nums">{r?.shippingAmount == null ? "—" : formatYen(r.shippingAmount)}</td>
+                <td className="py-2 px-3 text-right tabular-nums">{nz(r.shippingQty)}</td>
+                <td className="py-2 px-3 text-right tabular-nums">{r.shippingAmount == null ? "—" : formatYen(r.shippingAmount)}</td>
               </tr>
             ))}
             {rows.length === 0 && (
@@ -141,7 +160,7 @@ export default async function DailyReportIndexPage({
         </table>
       </div>
       <p className="print:hidden text-[11px] text-slate-400 mt-2">
-        販売単位名をクリックすると、日次入力・推移・出力ができる詳細画面に移動します。
+        販売単位名をクリックすると、推移・出力ができる詳細画面に移動します。実績の入力・修正は「案件進捗管理」から行えます。
       </p>
     </div>
   );

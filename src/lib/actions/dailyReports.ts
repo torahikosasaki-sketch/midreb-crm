@@ -42,10 +42,12 @@ export async function upsertDailyReport(salesUnitId: string, fd: FormData) {
   });
   revalidatePath(`/reports/daily/${salesUnitId}`);
   revalidatePath("/reports/daily");
+  revalidatePath(`/progress/${salesUnitId}`);
 }
 
 export async function deleteDailyReport(id: string, salesUnitId: string) {
   await prisma.dailyReport.delete({ where: { id } });
   revalidatePath(`/reports/daily/${salesUnitId}`);
   revalidatePath("/reports/daily");
+  revalidatePath(`/progress/${salesUnitId}`);
 }
