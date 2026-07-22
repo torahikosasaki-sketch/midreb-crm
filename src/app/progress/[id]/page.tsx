@@ -8,6 +8,7 @@ import { upsertDailyReport, deleteDailyReport } from "@/lib/actions/dailyReports
 import { DeleteButton } from "@/components/DeleteButton";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ProgressChart, type ProgressPoint } from "@/components/ProgressChart";
+import { AccountProductPicker } from "@/components/AccountProductPicker";
 import {
   SALES_UNIT_STATUSES,
   weekSales,
@@ -30,13 +31,20 @@ export default async function SalesUnitDetail({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const unit = await prisma.salesUnit.findUnique({
-    where: { id },
-    include: {
-      weeks: { orderBy: { weekStart: "asc" } },
-      dailyReports: { orderBy: { reportDate: "asc" } },
-    },
-  });
+  const [unit, accounts] = await Promise.all([
+    prisma.salesUnit.findUnique({
+      where: { id },
+      include: {
+        weeks: { orderBy: { weekStart: "asc" } },
+        dailyReports: { orderBy: { reportDate: "asc" } },
+        account: { select: { id: true, name: true } },
+      },
+    }),
+    prisma.account.findMany({
+      select: { id: true, name: true, products: { select: { id: true, name: true }, orderBy: { name: "asc" } } },
+      orderBy: { name: "asc" },
+    }),
+  ]);
   if (!unit) notFound();
 
   const dailyReports = unit.dailyReports;
@@ -78,7 +86,7 @@ export default async function SalesUnitDetail({
             </span>
           </div>
           <p className="text-sm text-slate-500">
-            {unit.brand}
+            {unit.account?.name ?? unit.brand}
             {unit.store ? ` ・ ${unit.store}` : ""} ・ 週次目標 {unit.weeklyTarget ?? "—"}
           </p>
         </div>
@@ -295,6 +303,11 @@ export default async function SalesUnitDetail({
       <section>
         <h2 className="text-sm font-semibold text-slate-700 mb-2">販売単位の設定</h2>
         <form action={updateSalesUnit.bind(null, id)} className="grid grid-cols-2 md:grid-cols-3 gap-3 max-w-2xl">
+          <AccountProductPicker
+            accounts={accounts}
+            defaultAccountId={unit.accountId}
+            defaultProductId={unit.productId}
+          />
           <Field label="ブランド *">
             <input name="brand" required defaultValue={unit.brand} className={inputCls} />
           </Field>

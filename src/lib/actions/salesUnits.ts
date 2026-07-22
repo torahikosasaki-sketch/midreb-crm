@@ -17,6 +17,8 @@ function num(fd: FormData, key: string): number | null {
 
 function dataFromForm(fd: FormData) {
   return {
+    accountId: str(fd, "accountId"),
+    productId: str(fd, "productId"),
     brand: str(fd, "brand") ?? "(未設定)",
     productSku: str(fd, "productSku"),
     store: str(fd, "store"),

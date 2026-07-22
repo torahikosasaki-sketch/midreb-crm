@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { formatYen } from "@/lib/enums";
 import { createSalesUnit } from "@/lib/actions/salesUnits";
 import { SubmitButton } from "@/components/SubmitButton";
+import { AccountProductPicker } from "@/components/AccountProductPicker";
 import {
   weekSales,
   weekGmv,
@@ -10,15 +11,22 @@ import {
   weekAchievement,
   effectiveTarget,
   weekLabel,
+  unitBrandLabel,
 } from "@/lib/progress";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProgressPage() {
-  const units = await prisma.salesUnit.findMany({
-    include: { weeks: { orderBy: { weekStart: "asc" } } },
-    orderBy: { createdAt: "asc" },
-  });
+  const [units, accounts] = await Promise.all([
+    prisma.salesUnit.findMany({
+      include: { weeks: { orderBy: { weekStart: "asc" } }, account: { select: { name: true } } },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.account.findMany({
+      select: { id: true, name: true, products: { select: { id: true, name: true }, orderBy: { name: "asc" } } },
+      orderBy: { name: "asc" },
+    }),
+  ]);
 
   const rows = units.map((u) => {
     const weeks = u.weeks;
@@ -72,13 +80,13 @@ export default async function ProgressPage() {
             {/* 販売単位 */}
             <div className="w-56 shrink-0 min-w-0">
               <div className="flex items-center gap-2">
-                <span className="font-semibold truncate">{u.productSku ?? u.brand}</span>
+                <span className="font-semibold truncate">{u.productSku ?? unitBrandLabel(u)}</span>
                 {u.status === "終了" && (
                   <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">終了</span>
                 )}
               </div>
               <div className="text-[11px] text-slate-400">
-                {u.brand}
+                {unitBrandLabel(u)}
                 {u.store ? ` ・ ${u.store}` : ""}
               </div>
             </div>
@@ -135,8 +143,9 @@ export default async function ProgressPage() {
         className="flex flex-wrap items-end gap-2 px-6 py-3 border-t border-slate-200 bg-white"
       >
         <span className="text-sm font-medium text-slate-600 mr-1">販売単位を追加:</span>
+        <AccountProductPicker accounts={accounts} />
         <Inp name="brand" label="ブランド *" required w="w-32" />
-        <Inp name="productSku" label="商品名/SKU" w="w-40" />
+        <Inp name="productSku" label="商品名/SKU（自由入力）" w="w-40" />
         <Inp name="store" label="ストア" w="w-24" />
         <Inp name="weeklyTarget" label="週次目標" type="number" w="w-24" />
         <SubmitButton

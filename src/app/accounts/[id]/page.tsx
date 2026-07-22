@@ -42,6 +42,7 @@ export default async function AccountDetailPage({
         },
         orderBy: { createdAt: "desc" },
       },
+      products: { orderBy: { name: "asc" } },
     },
   });
   if (!account) notFound();
@@ -76,7 +77,7 @@ export default async function AccountDetailPage({
   const initial: AccountInitial = {
     name: account.name,
     businessTypes: account.businessTypes,
-    products: account.products,
+    products: account.products.map((p) => p.name),
     logoUrl: account.logoUrl,
     industry: account.industry,
     region: account.region,

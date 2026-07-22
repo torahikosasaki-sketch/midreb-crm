@@ -17,6 +17,7 @@ import {
 import { PrintButton } from "@/components/PrintButton";
 import { ReportPeriodPicker } from "@/components/ReportPeriodPicker";
 import { DailyAdChart, CreativeChart, type DailyAdPoint, type CreativePoint } from "@/components/DailyReportChart";
+import { unitBrandLabel } from "@/lib/progress";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +46,7 @@ export default async function DailyReportDetailPage({
 
   const unit = await prisma.salesUnit.findUnique({
     where: { id },
-    include: { dailyReports: { orderBy: { reportDate: "asc" } } },
+    include: { dailyReports: { orderBy: { reportDate: "asc" } }, account: { select: { name: true } } },
   });
   if (!unit) notFound();
 
@@ -82,9 +83,9 @@ export default async function DailyReportDetailPage({
 
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div>
-          <h1 className="text-xl font-bold">{unit.productSku ?? unit.brand}</h1>
+          <h1 className="text-xl font-bold">{unit.productSku ?? unitBrandLabel(unit)}</h1>
           <p className="text-sm text-slate-500">
-            {unit.brand}
+            {unitBrandLabel(unit)}
             {unit.store ? ` ・ ${unit.store}` : ""} ・ {periodLabel(period, anchor)} の進捗報告
           </p>
         </div>

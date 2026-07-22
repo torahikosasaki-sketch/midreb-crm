@@ -19,7 +19,6 @@ model Account {
   id               String      @id @default(cuid())
   name             String // 企業名
   businessTypes    String[]    @default([]) // 事業タグ（複数）
-  products         String[]    @default([]) // 商材（複数）
   logoUrl          String? // 顧客ロゴ（データURI）
   industry         String? // 業種
   region           String? // 国内/海外
@@ -34,6 +33,22 @@ model Account {
   updatedAt        DateTime    @updatedAt
   deals            Deal[]
   leads            Lead[]
+  products         Product[]
+  salesUnits       SalesUnit[]
+}
+
+/// 商材（顧客ごとの商材マスター）。商談明細・案件進捗管理から選択して参照する
+model Product {
+  id            String         @id @default(cuid())
+  account       Account        @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  accountId     String
+  name          String // 商材名
+  createdAt     DateTime       @default(now())
+  dealLineItems DealLineItem[]
+  salesUnits    SalesUnit[]
+
+  @@unique([accountId, name])
+  @@index([accountId])
 }
 
 /// リード（商談化前の見込み。企業必須）
@@ -94,7 +109,8 @@ model DealLineItem {
   deal          Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade)
   dealId        String
   name          String // サービス名/品目
-  productName   String? // 商材（顧客の商材一覧から選択）
+  product       Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productId     String? // 商材（顧客の商材一覧から選択）
   billingType   String    @default("単発") // 月次定額 / 単発
   amount        Int       @default(0) // 単価（月次定額=月額 / 単発=総額）
   quantity      Int       @default(1) // 数量
@@ -107,6 +123,7 @@ model DealLineItem {
   createdAt     DateTime  @default(now())
 
   @@index([dealId])
+  @@index([productId])
 }
 
 /// 活動ログ（架電・MTG・提案送付などの行動履歴）。商談 or リードに紐づく
@@ -129,8 +146,12 @@ model Activity {
 /// 販売単位（ブランド×商品）。進捗管理の主軸マスター
 model SalesUnit {
   id            String           @id @default(cuid())
-  brand         String // ブランド
-  productSku    String? // 商品名/SKU
+  account       Account?         @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  accountId     String? // 顧客（新規導入。既存レコードは未設定のまま運用可）
+  product       Product?         @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productId     String? // 商材（顧客の商材一覧から選択）
+  brand         String // ブランド（自由入力。互換のため維持。顧客未設定時の表示名フォールバック）
+  productSku    String? // 商品名/SKU（自由入力）
   store         String? // 利用ストア
   weeklyTarget  Int? // 週次目標（販売数）
   dailyAdBudget Int? // 日予算（広告費の消化率算出の既定値）
@@ -141,6 +162,8 @@ model SalesUnit {
   dailyReports  DailyReport[]
 
   @@index([status])
+  @@index([accountId])
+  @@index([productId])
 }
 
 /// 週次進捗（販売単位 × 週の動画/ライブ実績）。目標差分は算出（目標 − 動画販売 − ライブ販売）

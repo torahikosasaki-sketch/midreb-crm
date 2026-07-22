@@ -15,6 +15,7 @@ import {
 } from "@/lib/reports";
 import { ReportPeriodPicker } from "@/components/ReportPeriodPicker";
 import { PrintButton } from "@/components/PrintButton";
+import { unitBrandLabel } from "@/lib/progress";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +40,10 @@ export default async function DailyReportIndexPage({
 
   const units = await prisma.salesUnit.findMany({
     where: { status: "稼働中" },
-    include: { dailyReports: { where: { reportDate: { gte: start, lt: end } } } },
+    include: {
+      dailyReports: { where: { reportDate: { gte: start, lt: end } } },
+      account: { select: { name: true } },
+    },
     orderBy: { createdAt: "asc" },
   });
 
@@ -133,9 +137,9 @@ export default async function DailyReportIndexPage({
                     href={`/reports/daily/${u.id}?date=${anchorStr}&period=${period}`}
                     className="font-medium text-slate-800 hover:text-emerald-700 hover:underline"
                   >
-                    {u.productSku ?? u.brand}
+                    {u.productSku ?? unitBrandLabel(u)}
                   </Link>
-                  <div className="text-[11px] text-slate-400">{u.brand}</div>
+                  <div className="text-[11px] text-slate-400">{unitBrandLabel(u)}</div>
                 </td>
                 <td className="py-2 px-3 text-right tabular-nums">{nz(r.videoPosts)}</td>
                 <td className="py-2 px-3 text-right tabular-nums">{nz(r.liveCount)}</td>

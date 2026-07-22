@@ -10,6 +10,7 @@ import {
   ymdUtc,
   type Period,
 } from "@/lib/reports";
+import { unitBrandLabel } from "@/lib/progress";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -21,15 +22,18 @@ export async function GET(request: Request) {
 
   const units = await prisma.salesUnit.findMany({
     where: { status: "稼働中" },
-    include: { dailyReports: { where: { reportDate: { gte: start, lt: end } } } },
+    include: {
+      dailyReports: { where: { reportDate: { gte: start, lt: end } } },
+      account: { select: { name: true } },
+    },
     orderBy: { createdAt: "asc" },
   });
 
   const rows = units.map((u) => {
     const r = sumReports(u.dailyReports);
     return [
-      u.productSku ?? u.brand,
-      u.brand,
+      u.productSku ?? unitBrandLabel(u),
+      unitBrandLabel(u),
       r.videoPosts,
       r.liveCount,
       r.adSpend,

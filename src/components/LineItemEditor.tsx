@@ -15,7 +15,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 export type LineItem = {
   id: string;
   name: string;
-  productName: string | null;
+  productId: string | null;
   billingType: string;
   amount: number;
   quantity: number;
@@ -25,9 +25,11 @@ export type LineItem = {
   status: string;
 };
 
+export type ProductOption = { id: string; name: string };
+
 type Draft = {
   name: string;
-  productName: string;
+  productId: string;
   billingType: string;
   amount: string;
   quantity: string;
@@ -54,7 +56,7 @@ export function LineItemEditor({
 }: {
   dealId: string;
   lineItems: LineItem[];
-  accountProducts: string[];
+  accountProducts: ProductOption[];
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [billing, setBilling] = useState<string>("月次定額");
@@ -72,7 +74,7 @@ export function LineItemEditor({
     setEditingId(li.id);
     setDraft({
       name: li.name,
-      productName: li.productName ?? "",
+      productId: li.productId ?? "",
       billingType: li.billingType,
       amount: String(li.amount),
       quantity: String(li.quantity),
@@ -92,7 +94,7 @@ export function LineItemEditor({
     if (!draft) return;
     const fd = new FormData();
     fd.set("name", draft.name);
-    fd.set("productName", draft.productName);
+    fd.set("productId", draft.productId);
     fd.set("billingType", draft.billingType);
     fd.set("amount", draft.amount);
     fd.set("quantity", draft.quantity);
@@ -159,14 +161,14 @@ export function LineItemEditor({
                     </td>
                     <td className="py-1.5 px-2">
                       <select
-                        value={draft.productName}
-                        onChange={(e) => setDraft({ ...draft, productName: e.target.value })}
+                        value={draft.productId}
+                        onChange={(e) => setDraft({ ...draft, productId: e.target.value })}
                         className={inp + " w-28"}
                       >
                         <option value="">—</option>
                         {accountProducts.map((p) => (
-                          <option key={p} value={p}>
-                            {p}
+                          <option key={p.id} value={p.id}>
+                            {p.name}
                           </option>
                         ))}
                       </select>
@@ -263,7 +265,9 @@ export function LineItemEditor({
               return (
                 <tr key={li.id} className="border-b border-slate-100">
                   <td className="py-2 px-3 font-medium">{li.name}</td>
-                  <td className="py-2 px-3 text-xs text-slate-500">{li.productName ?? "—"}</td>
+                  <td className="py-2 px-3 text-xs text-slate-500">
+                    {accountProducts.find((p) => p.id === li.productId)?.name ?? "—"}
+                  </td>
                   <td className="py-2 px-3">
                     <span
                       className={`rounded px-1.5 py-0.5 text-[11px] ${
@@ -337,11 +341,11 @@ export function LineItemEditor({
           <input name="name" required className={inp + " w-36"} placeholder="TTS運用" />
         </L>
         <L label="商材">
-          <select name="productName" defaultValue="" className={inp}>
+          <select name="productId" defaultValue="" className={inp}>
             <option value="">—</option>
             {accountProducts.map((p) => (
-              <option key={p} value={p}>
-                {p}
+              <option key={p.id} value={p.id}>
+                {p.name}
               </option>
             ))}
           </select>

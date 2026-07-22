@@ -25,7 +25,7 @@ export default async function DealDetailPage({
   const deal = await prisma.deal.findUnique({
     where: { id },
     include: {
-      account: true,
+      account: { include: { products: { orderBy: { name: "asc" } } } },
       activities: { orderBy: { occurredAt: "desc" } },
       lineItems: { orderBy: { position: "asc" } },
     },
@@ -41,7 +41,7 @@ export default async function DealDetailPage({
   const lineItems: LineItem[] = deal.lineItems.map((l) => ({
     id: l.id,
     name: l.name,
-    productName: l.productName,
+    productId: l.productId,
     billingType: l.billingType,
     amount: l.amount,
     quantity: l.quantity,

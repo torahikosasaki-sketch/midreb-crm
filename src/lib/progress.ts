@@ -10,6 +10,11 @@ export type WeekLike = {
 
 export const SALES_UNIT_STATUSES = ["稼働中", "終了"] as const;
 
+/** 販売単位の表示名。顧客(Account)が紐付いていればその企業名を優先し、無ければ従来のブランド自由入力文字列にフォールバック */
+export function unitBrandLabel(u: { brand: string; account?: { name: string } | null }): string {
+  return u.account?.name ?? u.brand;
+}
+
 /** 週の総販売数（動画＋ライブ） */
 export function weekSales(w: WeekLike): number {
   return (w.videoSales ?? 0) + (w.liveSales ?? 0);

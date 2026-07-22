@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { toCsv } from "@/lib/csv";
 import { roi, cpa, budgetConsumptionRate, normalizeAnchor, recentBuckets, ymdUtc, type Period } from "@/lib/reports";
+import { unitBrandLabel } from "@/lib/progress";
 
 const BUCKET_COUNT: Record<Period, number> = { day: 30, week: 12, month: 12 };
 
@@ -14,7 +15,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   const unit = await prisma.salesUnit.findUnique({
     where: { id },
-    include: { dailyReports: { orderBy: { reportDate: "asc" } } },
+    include: { dailyReports: { orderBy: { reportDate: "asc" } }, account: { select: { name: true } } },
   });
   if (!unit) return new Response("Not Found", { status: 404 });
 
@@ -51,7 +52,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     rows
   );
 
-  const label = unit.productSku ?? unit.brand;
+  const label = unit.productSku ?? unitBrandLabel(unit);
   const filename = `${label}_${period}_${ymdUtc(anchor)}.csv`;
   return new Response(csv, {
     headers: {
