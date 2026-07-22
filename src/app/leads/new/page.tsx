@@ -18,7 +18,7 @@ export default async function NewLeadPage({
   ]);
 
   const initial: LeadInitial | undefined = sp.accountId
-    ? { accountId: sp.accountId, source: null, status: "未接触", owner: null, nextActionDate: null, memo: null }
+    ? { accountId: sp.accountId, source: null, status: "新規", owner: null, nextActionDate: null, memo: null }
     : undefined;
 
   return (

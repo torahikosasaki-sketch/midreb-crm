@@ -42,7 +42,7 @@ model Lead {
   account        Account    @relation(fields: [accountId], references: [id], onDelete: Cascade)
   accountId      String // 企業（必須）
   source         String? // リードソース／流入経路
-  status         String     @default("未接触") // 未接触/初回接触済み/2回目接触済み/3回目接触済み/商談化/対象外・追客終了
+  status         String     @default("新規") // 新規/アプローチ中/商談化/長期追客/営業対象外
   owner          String? // 担当（インサイドセールス）
   nextActionDate DateTime? // 次回アクション日
   memo           String?

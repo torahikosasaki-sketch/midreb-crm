@@ -19,7 +19,7 @@ function date(fd: FormData, key: string): Date | null {
 function leadDataFromForm(fd: FormData) {
   return {
     source: str(fd, "source"),
-    status: str(fd, "status") ?? "未接触",
+    status: str(fd, "status") ?? "新規",
     owner: str(fd, "owner"),
     nextActionDate: date(fd, "nextActionDate"),
     memo: str(fd, "memo"),

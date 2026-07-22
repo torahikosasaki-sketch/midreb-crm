@@ -62,31 +62,24 @@ export const KANBAN_PHASES: Phase[] = [
 
 /** リードのステータス */
 export const LEAD_STATUSES = [
-  "未接触",
-  "初回接触済み",
-  "2回目接触済み",
-  "3回目接触済み",
+  "新規",
+  "アプローチ中",
   "商談化",
-  "対象外・追客終了",
+  "長期追客",
+  "営業対象外",
 ] as const;
 export type LeadStatus = (typeof LEAD_STATUSES)[number];
 
 /** 追客中（進行中）とみなすリードステータス */
-export const LEAD_ACTIVE_STATUSES: LeadStatus[] = [
-  "未接触",
-  "初回接触済み",
-  "2回目接触済み",
-  "3回目接触済み",
-];
+export const LEAD_ACTIVE_STATUSES: LeadStatus[] = ["新規", "アプローチ中", "長期追客"];
 
 /** リードステータスのチップ配色 */
 export const LEAD_STATUS_COLORS: Record<string, string> = {
-  未接触: "bg-slate-100 text-slate-600",
-  初回接触済み: "bg-sky-100 text-sky-700",
-  "2回目接触済み": "bg-cyan-100 text-cyan-700",
-  "3回目接触済み": "bg-teal-100 text-teal-700",
+  新規: "bg-slate-100 text-slate-600",
+  アプローチ中: "bg-sky-100 text-sky-700",
   商談化: "bg-emerald-100 text-emerald-700",
-  "対象外・追客終了": "bg-rose-100 text-rose-600",
+  長期追客: "bg-amber-100 text-amber-700",
+  営業対象外: "bg-rose-100 text-rose-600",
 };
 
 /** リードソース／流入経路のマスタ値 */

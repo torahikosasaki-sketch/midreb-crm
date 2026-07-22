@@ -65,7 +65,7 @@ export function LeadForm({
       </Field>
 
       <Field label="ステータス *">
-        <Select name="status" options={LEAD_STATUSES} defaultValue={initial?.status ?? "未接触"} />
+        <Select name="status" options={LEAD_STATUSES} defaultValue={initial?.status ?? "新規"} />
       </Field>
 
       <Field label="担当（インサイドセールス）">
