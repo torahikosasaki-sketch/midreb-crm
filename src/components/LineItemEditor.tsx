@@ -112,8 +112,8 @@ export function LineItemEditor({
       </div>
 
       {/* 明細一覧 */}
-      <div className="rounded-lg border border-slate-200 overflow-hidden mb-3">
-        <table className="w-full text-sm">
+      <div className="rounded-lg border border-slate-200 overflow-x-auto mb-3">
+        <table className="w-full text-sm min-w-[820px]">
           <thead>
             <tr className="text-left text-slate-500 bg-slate-50 border-b border-slate-200">
               <th className="py-2 px-3 font-medium">品目</th>
