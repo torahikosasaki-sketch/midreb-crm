@@ -30,6 +30,7 @@ function dataFromForm(fd: FormData) {
   const status = recurring ? str(fd, "status") ?? "契約中" : "契約中";
   return {
     name: str(fd, "name") ?? "(品目)",
+    productName: str(fd, "productName"),
     billingType,
     amount: num(fd, "amount"),
     quantity: Math.max(1, num(fd, "quantity") || 1),

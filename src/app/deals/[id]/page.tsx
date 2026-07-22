@@ -41,6 +41,7 @@ export default async function DealDetailPage({
   const lineItems: LineItem[] = deal.lineItems.map((l) => ({
     id: l.id,
     name: l.name,
+    productName: l.productName,
     billingType: l.billingType,
     amount: l.amount,
     quantity: l.quantity,
@@ -117,7 +118,7 @@ export default async function DealDetailPage({
 
       <section className="mb-8">
         <h2 className="text-sm font-semibold text-slate-700 mb-2">契約明細（提供サービス・課金）</h2>
-        <LineItemEditor dealId={id} lineItems={lineItems} />
+        <LineItemEditor dealId={id} lineItems={lineItems} accountProducts={deal.account?.products ?? []} />
       </section>
 
       <h2 className="text-sm font-semibold text-slate-700 mb-2">案件情報</h2>

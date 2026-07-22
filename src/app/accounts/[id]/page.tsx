@@ -76,6 +76,7 @@ export default async function AccountDetailPage({
   const initial: AccountInitial = {
     name: account.name,
     businessTypes: account.businessTypes,
+    products: account.products,
     logoUrl: account.logoUrl,
     industry: account.industry,
     region: account.region,

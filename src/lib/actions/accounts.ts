@@ -24,6 +24,8 @@ function accountDataFromForm(fd: FormData) {
   const businessTypes = [...new Set(fd.getAll("businessTypes").map(String))].filter((t) =>
     BIZ_SET.has(t)
   );
+  // 商材（自由入力・重複排除・空文字除外）
+  const products = [...new Set(fd.getAll("products").map((v) => String(v).trim()))].filter(Boolean);
   // ロゴ: データURI or 空(削除)。50万文字(≈数百KB)を上限にガード
   const logo = str(fd, "logoUrl");
   const logoUrl = logo && logo.startsWith("data:image/") && logo.length < 500000 ? logo : logo ? undefined : null;
@@ -31,6 +33,7 @@ function accountDataFromForm(fd: FormData) {
   return {
     name: str(fd, "name") ?? "(無名)",
     businessTypes,
+    products,
     ...(logoUrl === undefined ? {} : { logoUrl }),
     industry: str(fd, "industry"),
     region: str(fd, "region"),

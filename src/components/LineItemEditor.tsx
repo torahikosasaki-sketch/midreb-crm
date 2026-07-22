@@ -15,6 +15,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 export type LineItem = {
   id: string;
   name: string;
+  productName: string | null;
   billingType: string;
   amount: number;
   quantity: number;
@@ -26,6 +27,7 @@ export type LineItem = {
 
 type Draft = {
   name: string;
+  productName: string;
   billingType: string;
   amount: string;
   quantity: string;
@@ -48,9 +50,11 @@ function fmtMonth(s: string | null): string {
 export function LineItemEditor({
   dealId,
   lineItems,
+  accountProducts,
 }: {
   dealId: string;
   lineItems: LineItem[];
+  accountProducts: string[];
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [billing, setBilling] = useState<string>("月次定額");
@@ -68,6 +72,7 @@ export function LineItemEditor({
     setEditingId(li.id);
     setDraft({
       name: li.name,
+      productName: li.productName ?? "",
       billingType: li.billingType,
       amount: String(li.amount),
       quantity: String(li.quantity),
@@ -87,6 +92,7 @@ export function LineItemEditor({
     if (!draft) return;
     const fd = new FormData();
     fd.set("name", draft.name);
+    fd.set("productName", draft.productName);
     fd.set("billingType", draft.billingType);
     fd.set("amount", draft.amount);
     fd.set("quantity", draft.quantity);
@@ -113,10 +119,11 @@ export function LineItemEditor({
 
       {/* 明細一覧 */}
       <div className="rounded-lg border border-slate-200 overflow-x-auto mb-3">
-        <table className="w-full text-sm min-w-[820px]">
+        <table className="w-full text-sm min-w-[920px]">
           <thead>
             <tr className="text-left text-slate-500 bg-slate-50 border-b border-slate-200">
               <th className="py-2 px-3 font-medium">品目</th>
+              <th className="py-2 px-3 font-medium">商材</th>
               <th className="py-2 px-3 font-medium">課金</th>
               <th className="py-2 px-3 font-medium text-right">単価</th>
               <th className="py-2 px-3 font-medium text-right">数量</th>
@@ -129,7 +136,7 @@ export function LineItemEditor({
           <tbody>
             {lineItems.length === 0 && (
               <tr>
-                <td colSpan={8} className="py-6 text-center text-slate-400">
+                <td colSpan={9} className="py-6 text-center text-slate-400">
                   明細がありません。下で追加してください。
                 </td>
               </tr>
@@ -149,6 +156,20 @@ export function LineItemEditor({
                         onChange={(e) => setDraft({ ...draft, name: e.target.value })}
                         className={inp + " w-32"}
                       />
+                    </td>
+                    <td className="py-1.5 px-2">
+                      <select
+                        value={draft.productName}
+                        onChange={(e) => setDraft({ ...draft, productName: e.target.value })}
+                        className={inp + " w-28"}
+                      >
+                        <option value="">—</option>
+                        {accountProducts.map((p) => (
+                          <option key={p} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                      </select>
                     </td>
                     <td className="py-1.5 px-2">
                       <select
@@ -242,6 +263,7 @@ export function LineItemEditor({
               return (
                 <tr key={li.id} className="border-b border-slate-100">
                   <td className="py-2 px-3 font-medium">{li.name}</td>
+                  <td className="py-2 px-3 text-xs text-slate-500">{li.productName ?? "—"}</td>
                   <td className="py-2 px-3">
                     <span
                       className={`rounded px-1.5 py-0.5 text-[11px] ${
@@ -314,6 +336,16 @@ export function LineItemEditor({
         <L label="品目 *">
           <input name="name" required className={inp + " w-36"} placeholder="TTS運用" />
         </L>
+        <L label="商材">
+          <select name="productName" defaultValue="" className={inp}>
+            <option value="">—</option>
+            {accountProducts.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+        </L>
         <L label="課金タイプ">
           <select
             name="billingType"
@@ -355,6 +387,11 @@ export function LineItemEditor({
           ＋ 明細を追加
         </SubmitButton>
       </form>
+      {accountProducts.length === 0 && (
+        <p className="text-[11px] text-slate-400 mt-1">
+          ※ 商材の選択肢は顧客詳細ページの「商材」欄で登録できます。
+        </p>
+      )}
     </div>
   );
 }

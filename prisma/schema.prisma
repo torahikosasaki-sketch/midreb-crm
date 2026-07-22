@@ -19,6 +19,7 @@ model Account {
   id               String      @id @default(cuid())
   name             String // 企業名
   businessTypes    String[]    @default([]) // 事業タグ（複数）
+  products         String[]    @default([]) // 商材（複数）
   logoUrl          String? // 顧客ロゴ（データURI）
   industry         String? // 業種
   region           String? // 国内/海外
@@ -93,6 +94,7 @@ model DealLineItem {
   deal          Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade)
   dealId        String
   name          String // サービス名/品目
+  productName   String? // 商材（顧客の商材一覧から選択）
   billingType   String    @default("単発") // 月次定額 / 単発
   amount        Int       @default(0) // 単価（月次定額=月額 / 単発=総額）
   quantity      Int       @default(1) // 数量
