@@ -11,7 +11,6 @@ export type AccountInitial = {
   name: string;
   businessTypes: string[];
   logoUrl: string | null;
-  targetTier: string | null;
   industry: string | null;
   region: string | null;
   owner: string | null;
@@ -19,8 +18,6 @@ export type AccountInitial = {
   contactName: string | null;
   email: string | null;
   phone: string | null;
-  firstContactDate: string | null;
-  salesTarget: number | null;
 };
 
 export function AccountForm({
@@ -82,9 +79,6 @@ export function AccountForm({
         <Field label="業種">
           <TextInput name="industry" defaultValue={initial?.industry ?? ""} placeholder="美容・コスメ / アパレル …" />
         </Field>
-        <Field label="ターゲット階層">
-          <TextInput name="targetTier" defaultValue={initial?.targetTier ?? ""} />
-        </Field>
         <Field label="国内/海外">
           <Select name="region" includeBlank options={REGIONS} defaultValue={initial?.region ?? ""} />
         </Field>
@@ -93,12 +87,6 @@ export function AccountForm({
         </Field>
         <Field label="担当者">
           <Select name="owner" includeBlank options={owners} defaultValue={initial?.owner ?? ""} />
-        </Field>
-        <Field label="初回接触日">
-          <TextInput name="firstContactDate" type="date" defaultValue={initial?.firstContactDate ?? ""} />
-        </Field>
-        <Field label="販売目標数">
-          <TextInput name="salesTarget" type="number" min="0" defaultValue={initial?.salesTarget ?? ""} />
         </Field>
         <Field label="連絡先（担当者名）">
           <TextInput name="contactName" defaultValue={initial?.contactName ?? ""} />

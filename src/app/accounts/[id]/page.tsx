@@ -77,7 +77,6 @@ export default async function AccountDetailPage({
     name: account.name,
     businessTypes: account.businessTypes,
     logoUrl: account.logoUrl,
-    targetTier: account.targetTier,
     industry: account.industry,
     region: account.region,
     owner: account.owner,
@@ -85,9 +84,9 @@ export default async function AccountDetailPage({
     contactName: account.contactName,
     email: account.email,
     phone: account.phone,
-    firstContactDate: account.firstContactDate?.toISOString().slice(0, 10) ?? null,
-    salesTarget: account.salesTarget,
   };
+
+  const ymd = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "—");
 
   return (
     <div className="p-6 max-w-4xl">
@@ -128,11 +127,15 @@ export default async function AccountDetailPage({
       </div>
 
       {/* KPI */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
         <Kpi label="MRR（月額経常）" value={formatYen(mrr)} accent />
         <Kpi label="ARR（年換算）" value={formatYen(mrr * 12)} />
         <Kpi label="単発売上(受注済)" value={formatYen(oneTime)} />
         <Kpi label="契約中サービス" value={`${activeServices} 件`} />
+      </div>
+      <div className="grid grid-cols-2 gap-3 mb-8 max-w-md">
+        <Kpi label="初回接触日（自動）" value={ymd(account.firstContactDate)} />
+        <Kpi label="契約締結日（自動）" value={ymd(account.contractDate)} />
       </div>
 
       {/* 契約（締結後） */}

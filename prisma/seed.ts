@@ -11,7 +11,6 @@ type SeedData = {
 
 const d = (v: unknown): Date | null => (v ? new Date(String(v)) : null);
 const s = (v: unknown): string | null => (v == null ? null : String(v));
-const n = (v: unknown): number | null => (v == null ? null : Math.round(Number(v)));
 
 async function main() {
   const data: SeedData = JSON.parse(
@@ -46,14 +45,12 @@ async function main() {
         businessTypes: a.businessType ? [String(a.businessType)] : [],
         industry: s(a.industry),
         region: s(a.region),
-        targetTier: s(a.targetTier),
         owner: s(a.owner),
         status: s(a.status),
         contactName: s(a.contactName),
         email: s(a.email),
         phone: s(a.phone),
         firstContactDate: d(a.firstContactDate),
-        salesTarget: n(a.salesTarget),
       },
     });
     accountIdByName.set(created.name, created.id);

@@ -32,7 +32,6 @@ function accountDataFromForm(fd: FormData) {
     name: str(fd, "name") ?? "(無名)",
     businessTypes,
     ...(logoUrl === undefined ? {} : { logoUrl }),
-    targetTier: str(fd, "targetTier"),
     industry: str(fd, "industry"),
     region: str(fd, "region"),
     owner: str(fd, "owner"),
@@ -40,14 +39,7 @@ function accountDataFromForm(fd: FormData) {
     contactName: str(fd, "contactName"),
     email: str(fd, "email"),
     phone: str(fd, "phone"),
-    firstContactDate: (() => {
-      const s = str(fd, "firstContactDate");
-      return s ? new Date(s) : null;
-    })(),
-    salesTarget: (() => {
-      const s = str(fd, "salesTarget");
-      return s == null ? null : Number(s);
-    })(),
+    // firstContactDate / contractDate はフォームでは編集不可（リード/商談のステータス変化で自動設定）
   };
 }
 

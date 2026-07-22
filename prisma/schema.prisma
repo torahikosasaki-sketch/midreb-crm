@@ -20,7 +20,6 @@ model Account {
   name             String // 企業名
   businessTypes    String[]    @default([]) // 事業タグ（複数）
   logoUrl          String? // 顧客ロゴ（データURI）
-  targetTier       String? // ターゲット階層
   industry         String? // 業種
   region           String? // 国内/海外
   owner            String? // 担当者
@@ -28,8 +27,8 @@ model Account {
   contactName      String? // 連絡先(担当者名)
   email            String? // メール
   phone            String? // 電話
-  firstContactDate DateTime? // 初回接触日
-  salesTarget      Int? // 販売目標数
+  firstContactDate DateTime? // 初回接触日（リードが「アプローチ中」等に初めて進んだ日。自動設定）
+  contractDate     DateTime? // 契約締結日（商談が受注フェーズに初めて到達した日。自動設定）
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
   deals            Deal[]

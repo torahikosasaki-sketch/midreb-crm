@@ -26,12 +26,23 @@ function leadDataFromForm(fd: FormData) {
   };
 }
 
+/** 「新規」以外のステータスになった＝初回接触が発生したとみなし、顧客の初回接触日を自動設定（未設定の場合のみ） */
+async function markFirstContact(accountId: string, status: string) {
+  if (status === "新規") return;
+  await prisma.account.updateMany({
+    where: { id: accountId, firstContactDate: null },
+    data: { firstContactDate: new Date() },
+  });
+}
+
 export async function createLead(fd: FormData) {
   const accountId = str(fd, "accountId");
   if (!accountId) throw new Error("リードには企業の選択が必須です");
+  const data = leadDataFromForm(fd);
   const lead = await prisma.lead.create({
-    data: { accountId, ...leadDataFromForm(fd) },
+    data: { accountId, ...data },
   });
+  await markFirstContact(accountId, data.status);
   revalidatePath("/leads");
   revalidatePath("/accounts");
   redirect(`/leads/${lead.id}`);
@@ -40,10 +51,12 @@ export async function createLead(fd: FormData) {
 export async function updateLead(id: string, fd: FormData) {
   const accountId = str(fd, "accountId");
   if (!accountId) throw new Error("リードには企業の選択が必須です");
+  const data = leadDataFromForm(fd);
   await prisma.lead.update({
     where: { id },
-    data: { accountId, ...leadDataFromForm(fd) },
+    data: { accountId, ...data },
   });
+  await markFirstContact(accountId, data.status);
   revalidatePath("/leads");
   revalidatePath(`/leads/${id}`);
   revalidatePath("/accounts");
@@ -60,7 +73,8 @@ export async function updateLeadField(id: string, field: string, value: string) 
   } else {
     data[field] = value;
   }
-  await prisma.lead.update({ where: { id }, data });
+  const lead = await prisma.lead.update({ where: { id }, data });
+  if (field === "status") await markFirstContact(lead.accountId, lead.status);
   revalidatePath("/leads");
   revalidatePath(`/leads/${id}`);
   revalidatePath("/accounts");
@@ -95,6 +109,7 @@ export async function convertLeadToDeal(id: string) {
     },
   });
   await prisma.lead.update({ where: { id }, data: { status: "商談化" } });
+  await markFirstContact(lead.accountId, "商談化");
   revalidatePath("/leads");
   revalidatePath(`/leads/${id}`);
   revalidatePath("/");

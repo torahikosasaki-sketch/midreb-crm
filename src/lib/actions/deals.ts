@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { CONTRACTED_PHASE } from "@/lib/enums";
 
 function str(fd: FormData, key: string): string | null {
   const v = fd.get(key);
@@ -36,6 +37,15 @@ function dealDataFromForm(fd: FormData) {
   };
 }
 
+/** フェーズが受注（契約締結）になった＝契約締結が発生したとみなし、顧客の契約締結日を自動設定（未設定の場合のみ） */
+async function markContractDate(accountId: string | null | undefined, phase: string) {
+  if (!accountId || phase !== CONTRACTED_PHASE) return;
+  await prisma.account.updateMany({
+    where: { id: accountId, contractDate: null },
+    data: { contractDate: new Date() },
+  });
+}
+
 export async function createDeal(fd: FormData) {
   const data = dealDataFromForm(fd);
   const customerize = fd.get("customerize") === "1";
@@ -53,6 +63,7 @@ export async function createDeal(fd: FormData) {
       position: (max._max.position ?? 0) + 1,
     },
   });
+  await markContractDate(data.accountId, data.phase);
   revalidatePath("/");
   revalidatePath("/deals");
   revalidatePath("/accounts");
@@ -67,6 +78,7 @@ export async function updateDeal(id: string, fd: FormData) {
     where: { id },
     data: customerize ? { ...data, customerized: true } : data,
   });
+  await markContractDate(data.accountId, data.phase);
   revalidatePath("/");
   revalidatePath("/deals");
   revalidatePath("/accounts");
@@ -96,7 +108,8 @@ export async function updateDealField(
   // フェーズを契約締結済みにし「はい」を選んだ場合は顧客化
   if (field === "phase" && customerize) data.customerized = true;
 
-  await prisma.deal.update({ where: { id }, data });
+  const deal = await prisma.deal.update({ where: { id }, data });
+  if (field === "phase") await markContractDate(deal.accountId, deal.phase);
   revalidatePath("/");
   revalidatePath("/deals");
   revalidatePath("/accounts");
@@ -113,7 +126,8 @@ export async function deleteDeal(id: string) {
 
 /** カンバンのドラッグ移動。フェーズと並び順を更新 */
 export async function moveDeal(id: string, phase: string, position: number) {
-  await prisma.deal.update({ where: { id }, data: { phase, position } });
+  const deal = await prisma.deal.update({ where: { id }, data: { phase, position } });
+  await markContractDate(deal.accountId, deal.phase);
   revalidatePath("/");
   revalidatePath("/deals");
 }
