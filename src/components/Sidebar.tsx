@@ -11,6 +11,7 @@ const NAV: NavItem[] = [
   { href: "/", label: "商談", icon: "kanban", match: ["/", "/deals"] },
   { href: "/accounts", label: "顧客", icon: "building" },
   { href: "/progress", label: "案件進捗管理", icon: "chart" },
+  { href: "/reports", label: "レポート", icon: "report", match: ["/reports"] },
 ];
 
 function isActive(pathname: string, href: string, match?: string[]): boolean {
@@ -116,6 +117,13 @@ function Icon({ name, active }: { name: string; active: boolean }) {
         <svg {...common}>
           <path d="M3 3v18h18" />
           <path d="M7 15l3-4 3 2 4-6" />
+        </svg>
+      );
+    case "report":
+      return (
+        <svg {...common}>
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <path d="M14 2v6h6M9 13h6M9 17h6M9 9h1" />
         </svg>
       );
     case "settings":

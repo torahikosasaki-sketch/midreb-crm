@@ -211,6 +211,9 @@ export default async function SalesUnitDetail({
           <Field label="週次目標（販売数）">
             <input name="weeklyTarget" type="number" defaultValue={unit.weeklyTarget ?? ""} className={inputCls} />
           </Field>
+          <Field label="日予算（広告費・レポート用）">
+            <input name="dailyAdBudget" type="number" defaultValue={unit.dailyAdBudget ?? ""} className={inputCls} />
+          </Field>
           <Field label="状態">
             <select name="status" defaultValue={unit.status} className={inputCls}>
               {SALES_UNIT_STATUSES.map((s) => (

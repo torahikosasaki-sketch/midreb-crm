@@ -28,3 +28,19 @@ body {
   background: #cbd5e1;
   border-radius: 4px;
 }
+
+/* レポート出力（印刷/PDF）: サイドバーや操作系UIを隠し、本文のみ印刷する */
+@media print {
+  aside,
+  .print\:hidden {
+    display: none !important;
+  }
+  body {
+    height: auto !important;
+    overflow: visible !important;
+  }
+  main {
+    height: auto !important;
+    overflow: visible !important;
+  }
+}

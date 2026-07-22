@@ -21,6 +21,7 @@ function dataFromForm(fd: FormData) {
     productSku: str(fd, "productSku"),
     store: str(fd, "store"),
     weeklyTarget: num(fd, "weeklyTarget"),
+    dailyAdBudget: num(fd, "dailyAdBudget"),
     status: str(fd, "status") ?? "稼働中",
     memo: str(fd, "memo"),
   };
