@@ -1,4 +1,3 @@
-import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { toCsv } from "@/lib/csv";
 import { roi, cpa, budgetConsumptionRate, normalizeAnchor, recentBuckets, ymdUtc, type Period } from "@/lib/reports";
@@ -17,7 +16,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     where: { id },
     include: { dailyReports: { orderBy: { reportDate: "asc" } } },
   });
-  if (!unit) notFound();
+  if (!unit) return new Response("Not Found", { status: 404 });
 
   const buckets = recentBuckets(unit.dailyReports, period, BUCKET_COUNT[period], anchor);
 
