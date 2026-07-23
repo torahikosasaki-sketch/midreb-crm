@@ -253,73 +253,146 @@ export function trendPct(
   return Math.round(((current - previous) / previous) * 1000) / 10;
 }
 
-/** サマリー示唆生成に渡す入力値（現在値・前期間値） */
+/** コンテンツ経由売上の動画/ライブ構成（合計・比率）。データが無ければ null */
+export function channelShare(
+  r: DailyReportLike
+): { total: number; video: number; live: number; videoPct: number; livePct: number } | null {
+  const video = r.videoGmv ?? 0;
+  const live = r.liveGmv ?? 0;
+  const total = video + live;
+  if (total <= 0) return null;
+  const videoPct = Math.round((video / total) * 100);
+  return { total, video, live, videoPct, livePct: 100 - videoPct };
+}
+
+const yen = (n: number) => "¥" + Math.round(n).toLocaleString("ja-JP");
+
+/** サマリー示唆の1件。tone で色・アイコンの意味づけを行う */
+export type InsightTone = "good" | "warn" | "bad" | "info";
+export type InsightItem = { tone: InsightTone; text: string };
+
+/** 示唆生成に渡す入力（現在期間・前期間の集計値と算出済み指標） */
 export type InsightInput = {
   period: Period;
-  adGmv: number | null | undefined;
-  adGmvPrev: number | null | undefined;
-  adSpend: number | null | undefined;
-  roi: number | null | undefined;
-  roiPrev: number | null | undefined;
-  videoGmv: number | null | undefined;
-  liveGmv: number | null | undefined;
-  orderCount: number | null | undefined;
-  orderCountPrev: number | null | undefined;
-  cpa: number | null | undefined;
-  cpaPrev: number | null | undefined;
-  budgetRate: number | null | undefined;
+  current: DailyReportLike;
+  previous: DailyReportLike;
+  roiCur: number | null;
+  roiPrev: number | null;
+  cpaCur: number | null;
+  cpaPrev: number | null;
+  budgetRate: number | null;
 };
 
-/** 数字から読み取れる示唆を日本語の箇条書きにまとめる（決定的なルールベース、AI生成ではない） */
-export function buildInsights(input: InsightInput): string[] {
-  const insights: string[] = [];
-  const w = previousPeriodWord(input.period);
+// 優先度: 小さいほど上位（bad/warnを先頭に）
+const TONE_ORDER: Record<InsightTone, number> = { bad: 0, warn: 1, good: 2, info: 3 };
 
-  const hasAdData = (input.adGmv ?? 0) !== 0 || (input.adGmvPrev ?? 0) !== 0;
-  const gmvChange = hasAdData ? trendPct(input.adGmv, input.adGmvPrev) : null;
-  if (gmvChange != null) {
-    if (gmvChange > 0) insights.push(`広告経由の売上は${w}比 +${gmvChange}% と伸びています。`);
-    else if (gmvChange < 0) insights.push(`広告経由の売上は${w}比 ${gmvChange}% と減少しています。`);
-    else insights.push(`広告経由の売上は${w}と横ばいです。`);
+/**
+ * 数字から読み取れる示唆を、カテゴリ（tone）付きで生成する。
+ * 決定的なルールベース（AI生成ではない）。重要度順にソートして返す。
+ */
+export function buildInsights(input: InsightInput): InsightItem[] {
+  const items: InsightItem[] = [];
+  const w = previousPeriodWord(input.period);
+  const { current: cur, previous: prev } = input;
+
+  // 1. コンテンツ経由売上（動画＋ライブ）のヘッドライン＋トレンド
+  const share = channelShare(cur);
+  const sharePrev = channelShare(prev);
+  if (share) {
+    const gmvChange = trendPct(share.total, sharePrev?.total ?? null);
+    if (gmvChange == null) {
+      items.push({ tone: "info", text: `コンテンツ経由の売上は ${yen(share.total)} です。` });
+    } else if (gmvChange > 0) {
+      items.push({ tone: "good", text: `コンテンツ経由の売上は ${yen(share.total)}（${w}比 +${gmvChange}%）と伸びています。` });
+    } else if (gmvChange < 0) {
+      items.push({
+        tone: gmvChange <= -20 ? "bad" : "warn",
+        text: `コンテンツ経由の売上は ${yen(share.total)}（${w}比 ${gmvChange}%）と減少しています。`,
+      });
+    } else {
+      items.push({ tone: "info", text: `コンテンツ経由の売上は ${yen(share.total)}（${w}と横ばい）です。` });
+    }
+
+    // 2. チャネル構成と前期間からのシフト
+    const dominant = share.videoPct >= share.livePct ? "動画投稿" : "ライブ配信";
+    const domPct = Math.max(share.videoPct, share.livePct);
+    let shiftNote = "";
+    if (sharePrev) {
+      const videoDiff = share.videoPct - sharePrev.videoPct;
+      if (videoDiff >= 5) shiftNote = `。動画の構成比が${w}より+${videoDiff}pt上昇`;
+      else if (videoDiff <= -5) shiftNote = `。ライブの構成比が${w}より+${-videoDiff}pt上昇`;
+    }
+    items.push({ tone: "info", text: `売上は${dominant}が牽引（全体の${domPct}%）${shiftNote}です。` });
   }
 
-  if (input.roi != null && input.roiPrev != null) {
-    const diff = Math.round((input.roi - input.roiPrev) * 10) / 10;
-    if (Math.abs(diff) >= 1) {
-      insights.push(
-        `ROIは${w}比 ${diff > 0 ? "+" : ""}${diff}pt${diff > 0 ? "改善しています" : "悪化しています"}。`
-      );
+  const hasAd = (cur.adSpend ?? 0) > 0;
+
+  // 3. ROIの健全性（絶対水準）＋トレンド
+  if (hasAd && input.roiCur != null) {
+    const roiTrend =
+      input.roiPrev != null ? Math.round((input.roiCur - input.roiPrev) * 10) / 10 : null;
+    const trendTxt =
+      roiTrend != null && Math.abs(roiTrend) >= 1
+        ? `（${w}比 ${roiTrend > 0 ? "+" : ""}${roiTrend}pt）`
+        : "";
+    if (input.roiCur >= 300) {
+      items.push({ tone: "good", text: `ROIは ${input.roiCur}% と高水準${trendTxt}です。` });
+    } else if (input.roiCur < 150) {
+      items.push({ tone: "bad", text: `ROIが ${input.roiCur}% と低め${trendTxt}。広告効率の見直しが必要です。` });
+    } else if (roiTrend != null && Math.abs(roiTrend) >= 1) {
+      items.push({
+        tone: roiTrend > 0 ? "good" : "warn",
+        text: `ROIは ${input.roiCur}%（${w}比 ${roiTrend > 0 ? "+" : ""}${roiTrend}pt）${roiTrend > 0 ? "改善" : "悪化"}しています。`,
+      });
     }
   }
 
-  const video = input.videoGmv ?? 0;
-  const live = input.liveGmv ?? 0;
-  const contentTotal = video + live;
-  if (contentTotal > 0) {
-    const dominant = video >= live ? "動画投稿" : "ライブ配信";
-    const share = Math.round(((video >= live ? video : live) / contentTotal) * 100);
-    insights.push(`コンテンツ経由の売上は${dominant}が中心（全体の${share}%）です。`);
+  // 4. 日予算消化率
+  if (input.budgetRate != null) {
+    if (input.budgetRate >= 100) {
+      items.push({ tone: "bad", text: `日予算消化率が ${input.budgetRate}% に達しています。予算超過に注意してください。` });
+    } else if (input.budgetRate >= 90) {
+      items.push({ tone: "warn", text: `日予算消化率が ${input.budgetRate}% と高めです。` });
+    } else if (input.budgetRate > 0 && input.budgetRate < 50) {
+      items.push({ tone: "info", text: `日予算消化率は ${input.budgetRate}% と余裕があります。` });
+    }
   }
 
-  if (input.budgetRate != null && input.budgetRate >= 100) {
-    insights.push(`日予算消化率が${input.budgetRate}%に達しています。予算超過に注意してください。`);
-  } else if (input.budgetRate != null && input.budgetRate >= 90) {
-    insights.push(`日予算消化率が${input.budgetRate}%と高めです。`);
+  // 5. CPA（下がる方が良い）
+  const cpaChange = trendPct(input.cpaCur, input.cpaPrev);
+  if (hasAd && cpaChange != null && Math.abs(cpaChange) >= 5) {
+    items.push({
+      tone: cpaChange > 0 ? "warn" : "good",
+      text: `CPAは${w}比 ${cpaChange > 0 ? "+" : ""}${cpaChange}%（${cpaChange > 0 ? "悪化" : "改善"}）しています。`,
+    });
   }
 
-  const cpaChange = trendPct(input.cpa, input.cpaPrev);
-  if (cpaChange != null && Math.abs(cpaChange) >= 5) {
-    insights.push(
-      `CPAは${w}比 ${cpaChange > 0 ? "+" : ""}${cpaChange}% ${cpaChange > 0 ? "悪化（上昇）しています" : "改善（低下）しています"}。`
-    );
-  }
-
-  const orderChange = trendPct(input.orderCount, input.orderCountPrev);
+  // 6. 注文数
+  const orderChange = trendPct(cur.orderCount, prev.orderCount);
   if (orderChange != null && Math.abs(orderChange) >= 5) {
-    insights.push(`注文数は${w}比 ${orderChange > 0 ? "+" : ""}${orderChange}% ${orderChange > 0 ? "増加" : "減少"}しています。`);
+    items.push({
+      tone: orderChange > 0 ? "good" : "warn",
+      text: `注文数は${w}比 ${orderChange > 0 ? "+" : ""}${orderChange}%（${orderChange > 0 ? "増加" : "減少"}）しています。`,
+    });
   }
 
-  if (insights.length === 0) insights.push("比較できるデータが十分にありません。");
+  // 7. クリエイティブ活動量（動画投稿・ライブ実施）の増減
+  const postsChange = trendPct(cur.videoPosts, prev.videoPosts);
+  const liveChange = trendPct(cur.liveCount, prev.liveCount);
+  if (postsChange != null && liveChange != null && postsChange <= -20 && liveChange <= -20) {
+    items.push({ tone: "warn", text: `動画投稿・ライブ実施ともに${w}より大きく減少しています。制作ペースの確認を。` });
+  } else if (postsChange != null && postsChange >= 20) {
+    items.push({ tone: "info", text: `動画投稿数が${w}比 +${postsChange}% と増えています。` });
+  }
 
-  return insights;
+  if (items.length === 0) {
+    items.push({ tone: "info", text: "この期間に集計できるデータがまだありません。案件進捗管理から実績を入力してください。" });
+  }
+
+  // 重要度順（bad → warn → good → info）に安定ソート
+  return items
+    .map((it, i) => ({ it, i }))
+    .sort((a, b) => TONE_ORDER[a.it.tone] - TONE_ORDER[b.it.tone] || a.i - b.i)
+    .map(({ it }) => it)
+    .slice(0, 6);
 }

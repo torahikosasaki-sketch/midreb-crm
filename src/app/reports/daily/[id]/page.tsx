@@ -8,6 +8,7 @@ import {
   budgetConsumptionRate,
   sumReports,
   withWeeklyCreative,
+  contentGmvTotal,
   normalizeAnchor,
   periodRange,
   periodLabel,
@@ -22,14 +23,21 @@ import {
 import { PrintButton } from "@/components/PrintButton";
 import { ReportPeriodPicker } from "@/components/ReportPeriodPicker";
 import { TrendBadge } from "@/components/TrendBadge";
+import { StatTile } from "@/components/StatTile";
+import { InsightList } from "@/components/InsightList";
+import { CompositionBar } from "@/components/CompositionBar";
+import { Sparkline } from "@/components/Sparkline";
 import {
-  DailyAdChart,
+  AdCompareChart,
+  RoiTrendChart,
   CreativeChart,
   ChannelGmvChart,
   type DailyAdPoint,
+  type RoiPoint,
   type CreativePoint,
   type ChannelGmvPoint,
 } from "@/components/DailyReportChart";
+import { CH } from "@/lib/reportColors";
 import { unitBrandLabel } from "@/lib/progress";
 
 export const dynamic = "force-dynamic";
@@ -42,6 +50,7 @@ function todayStr(): string {
 }
 
 const BUCKET_COUNT: Record<Period, number> = { day: 30, week: 12, month: 12 };
+const periodUnit = (p: Period) => (p === "day" ? "日" : p === "week" ? "週" : "ヶ月");
 
 export default async function DailyReportDetailPage({
   params,
@@ -75,6 +84,7 @@ export default async function DailyReportDetailPage({
   const selRoi = roi(selected);
   const selCpa = cpa(selected);
   const selRate = budgetConsumptionRate(selected, unit.dailyAdBudget);
+  const selContentGmv = contentGmvTotal(selected);
 
   // 前期間（比較用）
   const prevAnchor = shiftAnchor(period, anchor, -1);
@@ -83,20 +93,15 @@ export default async function DailyReportDetailPage({
   const previous = withWeeklyCreative(sumReports(prevRows), unit.weeks, period, prevStart, prevEnd);
   const prevRoi = roi(previous);
   const prevCpa = cpa(previous);
-  const prevRate = budgetConsumptionRate(previous, unit.dailyAdBudget);
+  const prevContentGmv = contentGmvTotal(previous);
 
   const insights = buildInsights({
     period,
-    adGmv: selected.adGmv,
-    adGmvPrev: previous.adGmv,
-    adSpend: selected.adSpend,
-    roi: selRoi,
+    current: selected,
+    previous,
+    roiCur: selRoi,
     roiPrev: prevRoi,
-    videoGmv: selected.videoGmv,
-    liveGmv: selected.liveGmv,
-    orderCount: selected.orderCount,
-    orderCountPrev: previous.orderCount,
-    cpa: selCpa,
+    cpaCur: selCpa,
     cpaPrev: prevCpa,
     budgetRate: selRate,
   });
@@ -109,8 +114,8 @@ export default async function DailyReportDetailPage({
     day: b.label,
     広告費: b.data.adSpend ?? 0,
     売上GMV: b.data.adGmv ?? 0,
-    ROI: roi(b.data),
   }));
+  const roiChartData: RoiPoint[] = buckets.map((b) => ({ day: b.label, ROI: roi(b.data) }));
   const creativeChartData: CreativePoint[] = buckets.map((b) => ({
     day: b.label,
     動画投稿数: b.data.videoPosts ?? 0,
@@ -122,6 +127,11 @@ export default async function DailyReportDetailPage({
     ライブGMV: b.data.liveGmv ?? 0,
   }));
   const hasChannelGmv = buckets.some((b) => b.data.videoGmv != null || b.data.liveGmv != null);
+  const hasAdData = reports.some((r) => r.adSpend != null || r.adGmv != null);
+
+  // スパークライン用の系列
+  const contentGmvSpark = buckets.map((b) => (b.data.videoGmv ?? 0) + (b.data.liveGmv ?? 0));
+  const orderSpark = buckets.map((b) => b.data.orderCount ?? 0);
 
   return (
     <div className="p-6 max-w-6xl">
@@ -131,12 +141,12 @@ export default async function DailyReportDetailPage({
         </Link>
       </div>
 
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+      <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
         <div>
           <h1 className="text-xl font-bold">{unit.productSku ?? unitBrandLabel(unit)}</h1>
           <p className="text-sm text-slate-500">
             {unitBrandLabel(unit)}
-            {unit.store ? ` ・ ${unit.store}` : ""} ・ {periodLabel(period, anchor)} の進捗報告
+            {unit.store ? ` ・ ${unit.store}` : ""} ・ {periodLabel(period, anchor)}
           </p>
         </div>
         <div className="print:hidden flex items-center gap-2">
@@ -151,117 +161,104 @@ export default async function DailyReportDetailPage({
         </div>
       </div>
 
-      {/* サマリー（示唆） */}
-      <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-4 mb-6">
-        <h2 className="text-sm font-semibold text-emerald-800 mb-2">
-          {summaryTitle}
-          <span className="ml-2 text-xs font-normal text-slate-500">（{prevWord}比較）</span>
-        </h2>
-        <ul className="space-y-1">
-          {insights.map((text, i) => (
-            <li key={i} className="text-sm text-slate-700 flex items-start gap-1.5">
-              <span className="text-emerald-500 mt-0.5">・</span>
-              {text}
-            </li>
-          ))}
-        </ul>
+      {/* ヒーロー: コンテンツ経由売上 ＋ チャネル構成 ＋ 広告サマリー */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+        <div className="lg:col-span-2 rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-xs text-emerald-700 font-medium">コンテンツ経由の売上（動画＋ライブ）</div>
+              <div className="mt-1 flex items-end gap-3">
+                <span className="text-4xl font-bold text-emerald-700 tracking-tight">
+                  {selContentGmv == null ? "—" : formatYen(selContentGmv)}
+                </span>
+                <span className="mb-1.5">
+                  <TrendBadge deltaPct={trendPct(selContentGmv, prevContentGmv)} suffix={`vs ${prevWord}`} />
+                </span>
+              </div>
+            </div>
+            {contentGmvSpark.some((v) => v > 0) && (
+              <Sparkline values={contentGmvSpark} color={CH.gmv} width={140} height={40} />
+            )}
+          </div>
+          <div className="mt-4">
+            <CompositionBar video={selected.videoGmv ?? 0} live={selected.liveGmv ?? 0} />
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <div className="text-xs text-slate-500 font-medium mb-3">広告パフォーマンス</div>
+          <dl className="space-y-3">
+            <MiniRow label="広告経由GMV" value={selected.adGmv == null ? "—" : formatYen(selected.adGmv)} delta={trendPct(selected.adGmv, previous.adGmv)} />
+            <MiniRow label="ROI" value={pct(selRoi)} delta={trendPct(selRoi, prevRoi)} />
+            <MiniRow label="広告費" value={selected.adSpend == null ? "—" : formatYen(selected.adSpend)} delta={trendPct(selected.adSpend, previous.adSpend)} invert />
+            <MiniRow label="日予算消化率" value={pct(selRate)} delta={trendPct(selRate, budgetConsumptionRate(previous, unit.dailyAdBudget))} invert />
+          </dl>
+        </div>
       </div>
 
-      {/* 選択期間のKPI（印刷対象） */}
+      {/* サマリー（示唆） */}
+      <section className="mb-6">
+        <h2 className="text-sm font-semibold text-slate-700 mb-2">
+          {summaryTitle}
+          <span className="ml-2 text-xs font-normal text-slate-400">（{prevWord}比較・数値から自動生成）</span>
+        </h2>
+        <InsightList items={insights} />
+      </section>
+
+      {/* KPIタイル */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-        <Kpi label="動画投稿数" value={nz(selected.videoPosts)} deltaPct={trendPct(selected.videoPosts, previous.videoPosts)} />
-        <Kpi label="ライブ実施回数" value={nz(selected.liveCount)} deltaPct={trendPct(selected.liveCount, previous.liveCount)} />
-        <Kpi label="広告費" value={selected.adSpend == null ? "—" : formatYen(selected.adSpend)} deltaPct={trendPct(selected.adSpend, previous.adSpend)} invert />
-        <Kpi label="広告経由GMV" value={selected.adGmv == null ? "—" : formatYen(selected.adGmv)} deltaPct={trendPct(selected.adGmv, previous.adGmv)} accent />
-        <Kpi label="ROI" value={pct(selRoi)} deltaPct={trendPct(selRoi, prevRoi)} />
-        <Kpi label="注文数" value={nz(selected.orderCount)} deltaPct={trendPct(selected.orderCount, previous.orderCount)} />
-        <Kpi label="CPA" value={selCpa == null ? "—" : formatYen(selCpa)} deltaPct={trendPct(selCpa, prevCpa)} invert />
-        <Kpi label="日予算消化率" value={pct(selRate)} deltaPct={trendPct(selRate, prevRate)} invert />
+        <StatTile label="動画経由GMV" value={selected.videoGmv == null ? "—" : formatYen(selected.videoGmv)} deltaPct={trendPct(selected.videoGmv, previous.videoGmv)} />
+        <StatTile label="ライブ経由GMV" value={selected.liveGmv == null ? "—" : formatYen(selected.liveGmv)} deltaPct={trendPct(selected.liveGmv, previous.liveGmv)} />
+        <StatTile label="動画投稿数" value={nz(selected.videoPosts)} deltaPct={trendPct(selected.videoPosts, previous.videoPosts)} />
+        <StatTile label="ライブ実施回数" value={nz(selected.liveCount)} deltaPct={trendPct(selected.liveCount, previous.liveCount)} />
+        <StatTile label="注文数" value={nz(selected.orderCount)} deltaPct={trendPct(selected.orderCount, previous.orderCount)} spark={orderSpark} />
+        <StatTile label="CPA" value={selCpa == null ? "—" : formatYen(selCpa)} deltaPct={trendPct(selCpa, prevCpa)} invert />
+        <StatTile label="配送 売上個数" value={nz(selected.shippingQty)} deltaPct={trendPct(selected.shippingQty, previous.shippingQty)} />
+        <StatTile label="配送 売上金額" value={selected.shippingAmount == null ? "—" : formatYen(selected.shippingAmount)} deltaPct={trendPct(selected.shippingAmount, previous.shippingAmount)} />
       </div>
-      <div className="grid grid-cols-3 gap-3 mb-3 max-w-2xl">
-        <Kpi label="動画経由GMV" value={selected.videoGmv == null ? "—" : formatYen(selected.videoGmv)} deltaPct={trendPct(selected.videoGmv, previous.videoGmv)} />
-        <Kpi label="ライブ経由GMV" value={selected.liveGmv == null ? "—" : formatYen(selected.liveGmv)} deltaPct={trendPct(selected.liveGmv, previous.liveGmv)} />
-        <Kpi
-          label="コンテンツ合計GMV"
-          value={selected.videoGmv == null && selected.liveGmv == null ? "—" : formatYen((selected.videoGmv ?? 0) + (selected.liveGmv ?? 0))}
-          deltaPct={trendPct((selected.videoGmv ?? 0) + (selected.liveGmv ?? 0), (previous.videoGmv ?? 0) + (previous.liveGmv ?? 0))}
-          accent
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-3 mb-8 max-w-md">
-        <Kpi label="配送 売上個数" value={nz(selected.shippingQty)} deltaPct={trendPct(selected.shippingQty, previous.shippingQty)} />
-        <Kpi label="配送 売上金額" value={selected.shippingAmount == null ? "—" : formatYen(selected.shippingAmount)} deltaPct={trendPct(selected.shippingAmount, previous.shippingAmount)} />
-      </div>
-      {selectedRows.length === 0 && selected.videoPosts == null && selected.liveCount == null && (
-        <p className="print:hidden text-sm text-slate-400 -mt-6 mb-8">
-          {periodLabel(period, anchor)} の記録はまだありません。
-          <Link href={`/progress/${id}`} className="text-emerald-600 hover:underline">
-            案件進捗管理
-          </Link>
+
+      {selectedRows.length === 0 && (selected.videoPosts != null || selected.liveCount != null) && (
+        <p className="print:hidden text-xs text-slate-400 mb-6">
+          ※ 動画投稿数・ライブ実施回数・チャネル別GMVは案件進捗管理の週次実績から自動反映。広告・配送の実績は
+          <Link href={`/progress/${id}`} className="text-emerald-600 hover:underline">案件進捗管理</Link>
           から入力してください。
         </p>
       )}
-      {selectedRows.length === 0 && (selected.videoPosts != null || selected.liveCount != null) && (
-        <p className="print:hidden text-sm text-slate-400 -mt-6 mb-8">
-          動画投稿数・ライブ実施回数・チャネル別GMVは案件進捗管理の週次実績から自動反映されています。広告・配送の実績は
-          <Link href={`/progress/${id}`} className="text-emerald-600 hover:underline">
-            案件進捗管理
-          </Link>
+      {selectedRows.length === 0 && selected.videoPosts == null && selected.liveCount == null && (
+        <p className="print:hidden text-sm text-slate-400 mb-6">
+          {periodLabel(period, anchor)} の記録はまだありません。
+          <Link href={`/progress/${id}`} className="text-emerald-600 hover:underline">案件進捗管理</Link>
           から入力してください。
         </p>
       )}
 
       {/* 推移グラフ */}
       <div className="print:hidden grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
-        <section>
-          <h2 className="text-sm font-semibold text-slate-700 mb-2">
-            広告費・GMV・ROI 推移（直近{BUCKET_COUNT[period]}{period === "day" ? "日" : period === "week" ? "週" : "ヶ月"}）
-          </h2>
-          <div className="rounded-lg border border-slate-200 bg-white p-4">
-            {reports.length === 0 ? (
-              <p className="text-sm text-slate-400 py-10 text-center">記録がありません</p>
-            ) : (
-              <DailyAdChart data={adChartData} />
-            )}
-          </div>
-        </section>
-        <section>
-          <h2 className="text-sm font-semibold text-slate-700 mb-2">
-            クリエイティブ推移（直近{BUCKET_COUNT[period]}{period === "day" ? "日" : period === "week" ? "週" : "ヶ月"}）
-          </h2>
-          <div className="rounded-lg border border-slate-200 bg-white p-4">
-            {reports.length === 0 && unit.weeks.length === 0 ? (
-              <p className="text-sm text-slate-400 py-10 text-center">記録がありません</p>
-            ) : (
-              <CreativeChart data={creativeChartData} />
-            )}
-          </div>
-        </section>
-        <section>
-          <h2 className="text-sm font-semibold text-slate-700 mb-2">
-            チャネル別売上（動画/ライブ）推移（直近{BUCKET_COUNT[period]}{period === "day" ? "日" : period === "week" ? "週" : "ヶ月"}）
-          </h2>
-          <div className="rounded-lg border border-slate-200 bg-white p-4">
-            {!hasChannelGmv ? (
-              <p className="text-sm text-slate-400 py-10 text-center">
-                記録がありません（動画/ライブGMVは週次実績から反映されます）
-              </p>
-            ) : (
-              <ChannelGmvChart data={channelGmvChartData} />
-            )}
-          </div>
-        </section>
+        <ChartCard title={`チャネル別売上（動画/ライブ）推移 ・ 直近${BUCKET_COUNT[period]}${periodUnit(period)}`}>
+          {hasChannelGmv ? <ChannelGmvChart data={channelGmvChartData} /> : <Empty note="動画/ライブGMVは案件進捗管理の週次実績から反映されます" />}
+        </ChartCard>
+        <ChartCard title={`クリエイティブ活動 推移 ・ 直近${BUCKET_COUNT[period]}${periodUnit(period)}`}>
+          {reports.length === 0 && unit.weeks.length === 0 ? <Empty /> : <CreativeChart data={creativeChartData} />}
+        </ChartCard>
+        <ChartCard title={`広告費 と 広告経由GMV ・ 直近${BUCKET_COUNT[period]}${periodUnit(period)}`}>
+          {hasAdData ? <AdCompareChart data={adChartData} /> : <Empty note="広告実績は案件進捗管理から入力してください" />}
+        </ChartCard>
+        <ChartCard title={`ROI 推移 ・ 直近${BUCKET_COUNT[period]}${periodUnit(period)}`}>
+          {hasAdData ? <RoiTrendChart data={roiChartData} /> : <Empty note="広告実績は案件進捗管理から入力してください" />}
+        </ChartCard>
       </div>
 
-      {/* 実績テーブル（読み取り専用。入力・削除は案件進捗管理で行う） */}
-      <section className="print:hidden mb-8">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-sm font-semibold text-slate-700">日次実績（読み取り専用）</h2>
+      {/* 生データ（折りたたみ・読み取り専用） */}
+      <details className="print:hidden mb-8">
+        <summary className="cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+          日次の生データ（{reports.length}件）を表示
+        </summary>
+        <div className="mt-2 flex justify-end">
           <Link href={`/progress/${id}`} className="text-xs text-emerald-600 hover:underline">
-            実績を入力する → 案件進捗管理
+            実績を入力 → 案件進捗管理
           </Link>
         </div>
-        <div className="overflow-auto rounded-lg border border-slate-200">
+        <div className="mt-2 overflow-auto rounded-lg border border-slate-200">
           <table className="w-full text-sm bg-white">
             <thead>
               <tr className="text-left text-slate-500 bg-slate-50 border-b border-slate-200">
@@ -298,41 +295,43 @@ export default async function DailyReportDetailPage({
               ))}
               {reports.length === 0 && (
                 <tr>
-                  <td colSpan={12} className="py-6 text-center text-slate-400">
-                    記録がありません
-                  </td>
+                  <td colSpan={12} className="py-6 text-center text-slate-400">記録がありません</td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-      </section>
+      </details>
     </div>
   );
 }
 
-function Kpi({
-  label,
-  value,
-  accent,
-  deltaPct,
-  invert,
-}: {
-  label: string;
-  value: string;
-  accent?: boolean;
-  deltaPct?: number | null;
-  invert?: boolean;
-}) {
+function MiniRow({ label, value, delta, invert }: { label: string; value: string; delta: number | null; invert?: boolean }) {
   return (
-    <div className={`rounded-lg border p-3 ${accent ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-white"}`}>
-      <div className={`text-xs ${accent ? "text-emerald-600" : "text-slate-500"}`}>{label}</div>
-      <div className={`text-lg font-bold tabular-nums ${accent ? "text-emerald-700" : "text-slate-800"}`}>{value}</div>
-      {deltaPct !== undefined && (
-        <div className="mt-0.5">
-          <TrendBadge deltaPct={deltaPct} invert={invert} />
-        </div>
-      )}
+    <div className="flex items-center justify-between gap-2">
+      <dt className="text-xs text-slate-500">{label}</dt>
+      <dd className="flex items-center gap-2">
+        <span className="text-sm font-bold text-slate-800 tabular-nums">{value}</span>
+        <TrendBadge deltaPct={delta} invert={invert} />
+      </dd>
+    </div>
+  );
+}
+
+function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section>
+      <h2 className="text-sm font-semibold text-slate-700 mb-2">{title}</h2>
+      <div className="rounded-xl border border-slate-200 bg-white p-4">{children}</div>
+    </section>
+  );
+}
+
+function Empty({ note }: { note?: string }) {
+  return (
+    <div className="py-12 text-center">
+      <p className="text-sm text-slate-400">記録がありません</p>
+      {note && <p className="mt-1 text-xs text-slate-400">{note}</p>}
     </div>
   );
 }
