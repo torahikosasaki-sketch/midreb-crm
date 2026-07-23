@@ -11,11 +11,16 @@ import {
   normalizeAnchor,
   periodRange,
   periodLabel,
+  previousPeriodWord,
+  trendPct,
+  buildInsights,
+  shiftAnchor,
   ymdUtc,
   type Period,
 } from "@/lib/reports";
 import { ReportPeriodPicker } from "@/components/ReportPeriodPicker";
 import { PrintButton } from "@/components/PrintButton";
+import { TrendBadge } from "@/components/TrendBadge";
 import { unitBrandLabel } from "@/lib/progress";
 
 export const dynamic = "force-dynamic";
@@ -27,23 +32,12 @@ function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-export default async function DailyReportIndexPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ date?: string; period?: string }>;
-}) {
-  const { date, period: periodParam } = await searchParams;
-  const period: Period = periodParam === "week" || periodParam === "month" ? periodParam : "day";
-  const dateStr = date ?? todayStr();
-  const anchor = normalizeAnchor(period, dateStr);
-  const anchorStr = ymdUtc(anchor);
-  const { start, end } = periodRange(period, anchor);
-
+async function loadTotals(period: Period, start: Date, end: Date) {
   const units = await prisma.salesUnit.findMany({
     where: { status: "稼働中" },
     include: {
       dailyReports: { where: { reportDate: { gte: start, lt: end } } },
-      weeks: { select: { weekStart: true, videoPosts: true, liveCount: true } },
+      weeks: { select: { weekStart: true, videoPosts: true, liveCount: true, videoGmv: true, liveGmv: true } },
       account: { select: { name: true } },
     },
     orderBy: { createdAt: "asc" },
@@ -60,9 +54,10 @@ export default async function DailyReportIndexPage({
     };
   });
 
-  // サマリ（合計から再計算。個別ROI等の平均は取らない）
   const totalAdSpend = rows.reduce((s, x) => s + (x.r.adSpend ?? 0), 0);
   const totalGmv = rows.reduce((s, x) => s + (x.r.adGmv ?? 0), 0);
+  const totalVideoGmv = rows.reduce((s, x) => s + (x.r.videoGmv ?? 0), 0);
+  const totalLiveGmv = rows.reduce((s, x) => s + (x.r.liveGmv ?? 0), 0);
   const totalOrders = rows.reduce((s, x) => s + (x.r.orderCount ?? 0), 0);
   const totalBudget = rows.reduce((s, x) => s + (effectiveDailyBudget(x.r, x.u.dailyAdBudget) ?? 0), 0);
   const totalVideoPosts = rows.reduce((s, x) => s + (x.r.videoPosts ?? 0), 0);
@@ -72,6 +67,62 @@ export default async function DailyReportIndexPage({
   const totalRoi = totalAdSpend > 0 ? Math.round((totalGmv / totalAdSpend) * 1000) / 10 : null;
   const totalCpa = totalOrders > 0 ? Math.round(totalAdSpend / totalOrders) : null;
   const totalRate = totalBudget > 0 ? Math.round((totalAdSpend / totalBudget) * 1000) / 10 : null;
+
+  return {
+    rows,
+    totalAdSpend,
+    totalGmv,
+    totalVideoGmv,
+    totalLiveGmv,
+    totalOrders,
+    totalVideoPosts,
+    totalLiveCount,
+    totalShippingQty,
+    totalShippingAmount,
+    totalRoi,
+    totalCpa,
+    totalRate,
+  };
+}
+
+export default async function DailyReportIndexPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ date?: string; period?: string }>;
+}) {
+  const { date, period: periodParam } = await searchParams;
+  const period: Period = periodParam === "week" || periodParam === "month" ? periodParam : "day";
+  const dateStr = date ?? todayStr();
+  const anchor = normalizeAnchor(period, dateStr);
+  const anchorStr = ymdUtc(anchor);
+  const { start, end } = periodRange(period, anchor);
+  const prevAnchor = shiftAnchor(period, anchor, -1);
+  const { start: prevStart, end: prevEnd } = periodRange(period, prevAnchor);
+
+  const [current, previous] = await Promise.all([
+    loadTotals(period, start, end),
+    loadTotals(period, prevStart, prevEnd),
+  ]);
+  const { rows } = current;
+
+  const insights = buildInsights({
+    period,
+    adGmv: current.totalGmv,
+    adGmvPrev: previous.totalGmv,
+    adSpend: current.totalAdSpend,
+    roi: current.totalRoi,
+    roiPrev: previous.totalRoi,
+    videoGmv: current.totalVideoGmv,
+    liveGmv: current.totalLiveGmv,
+    orderCount: current.totalOrders,
+    orderCountPrev: previous.totalOrders,
+    cpa: current.totalCpa,
+    cpaPrev: previous.totalCpa,
+    budgetRate: current.totalRate,
+  });
+
+  const prevWord = previousPeriodWord(period);
+  const summaryTitle = period === "day" ? "本日のサマリー" : period === "week" ? "今週のサマリー" : "今月のサマリー";
 
   return (
     <div className="p-6 max-w-7xl">
@@ -97,20 +148,48 @@ export default async function DailyReportIndexPage({
         </div>
       </div>
 
-      {/* サマリKPI */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-px bg-slate-200 border border-slate-200 rounded-lg overflow-hidden mb-4">
-        <Kpi label="動画投稿数" value={nz(totalVideoPosts)} />
-        <Kpi label="ライブ実施回数" value={nz(totalLiveCount)} />
-        <Kpi label="広告費" value={formatYen(totalAdSpend)} />
-        <Kpi label="売上(GMV)" value={formatYen(totalGmv)} accent />
-        <Kpi label="ROI" value={pct(totalRoi)} />
-        <Kpi label="注文数" value={nz(totalOrders)} />
-        <Kpi label="CPA" value={totalCpa == null ? "—" : formatYen(totalCpa)} />
-        <Kpi label="日予算消化率" value={pct(totalRate)} />
+      {/* サマリー（示唆） */}
+      <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-4 mb-6">
+        <h2 className="text-sm font-semibold text-emerald-800 mb-2">
+          {summaryTitle}
+          <span className="ml-2 text-xs font-normal text-slate-500">（{prevWord}比較）</span>
+        </h2>
+        <ul className="space-y-1">
+          {insights.map((text, i) => (
+            <li key={i} className="text-sm text-slate-700 flex items-start gap-1.5">
+              <span className="text-emerald-500 mt-0.5">・</span>
+              {text}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* クリエイティブ / 広告 KPI */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-px bg-slate-200 border border-slate-200 rounded-lg overflow-hidden mb-2">
+        <Kpi label="動画投稿数" value={nz(current.totalVideoPosts)} deltaPct={trendPct(current.totalVideoPosts, previous.totalVideoPosts)} />
+        <Kpi label="ライブ実施回数" value={nz(current.totalLiveCount)} deltaPct={trendPct(current.totalLiveCount, previous.totalLiveCount)} />
+        <Kpi label="広告費" value={formatYen(current.totalAdSpend)} deltaPct={trendPct(current.totalAdSpend, previous.totalAdSpend)} invert />
+        <Kpi label="広告経由GMV" value={formatYen(current.totalGmv)} deltaPct={trendPct(current.totalGmv, previous.totalGmv)} accent />
+        <Kpi label="ROI" value={pct(current.totalRoi)} deltaPct={trendPct(current.totalRoi, previous.totalRoi)} />
+        <Kpi label="注文数" value={nz(current.totalOrders)} deltaPct={trendPct(current.totalOrders, previous.totalOrders)} />
+        <Kpi label="CPA" value={current.totalCpa == null ? "—" : formatYen(current.totalCpa)} deltaPct={trendPct(current.totalCpa, previous.totalCpa)} invert />
+        <Kpi label="日予算消化率" value={pct(current.totalRate)} deltaPct={trendPct(current.totalRate, previous.totalRate)} invert />
+      </div>
+
+      {/* チャネル別売上（動画/ライブ） */}
+      <div className="grid grid-cols-3 gap-px bg-slate-200 border border-slate-200 rounded-lg overflow-hidden mb-2 max-w-xl">
+        <Kpi label="動画経由GMV" value={formatYen(current.totalVideoGmv)} deltaPct={trendPct(current.totalVideoGmv, previous.totalVideoGmv)} />
+        <Kpi label="ライブ経由GMV" value={formatYen(current.totalLiveGmv)} deltaPct={trendPct(current.totalLiveGmv, previous.totalLiveGmv)} />
+        <Kpi
+          label="コンテンツ合計GMV"
+          value={formatYen(current.totalVideoGmv + current.totalLiveGmv)}
+          deltaPct={trendPct(current.totalVideoGmv + current.totalLiveGmv, previous.totalVideoGmv + previous.totalLiveGmv)}
+          accent
+        />
       </div>
       <div className="grid grid-cols-2 gap-px bg-slate-200 border border-slate-200 rounded-lg overflow-hidden mb-6 max-w-md">
-        <Kpi label="配送 売上個数" value={nz(totalShippingQty)} />
-        <Kpi label="配送 売上金額" value={formatYen(totalShippingAmount)} />
+        <Kpi label="配送 売上個数" value={nz(current.totalShippingQty)} deltaPct={trendPct(current.totalShippingQty, previous.totalShippingQty)} />
+        <Kpi label="配送 売上金額" value={formatYen(current.totalShippingAmount)} deltaPct={trendPct(current.totalShippingAmount, previous.totalShippingAmount)} />
       </div>
 
       {/* 販売単位別テーブル */}
@@ -121,8 +200,10 @@ export default async function DailyReportIndexPage({
               <th className="py-2 px-3 font-medium">販売単位</th>
               <th className="py-2 px-3 font-medium text-right">動画投稿</th>
               <th className="py-2 px-3 font-medium text-right">ライブ</th>
+              <th className="py-2 px-3 font-medium text-right">動画GMV</th>
+              <th className="py-2 px-3 font-medium text-right">ライブGMV</th>
               <th className="py-2 px-3 font-medium text-right">広告費</th>
-              <th className="py-2 px-3 font-medium text-right">GMV</th>
+              <th className="py-2 px-3 font-medium text-right">広告経由GMV</th>
               <th className="py-2 px-3 font-medium text-right">ROI</th>
               <th className="py-2 px-3 font-medium text-right">注文数</th>
               <th className="py-2 px-3 font-medium text-right">CPA</th>
@@ -145,6 +226,8 @@ export default async function DailyReportIndexPage({
                 </td>
                 <td className="py-2 px-3 text-right tabular-nums">{nz(r.videoPosts)}</td>
                 <td className="py-2 px-3 text-right tabular-nums">{nz(r.liveCount)}</td>
+                <td className="py-2 px-3 text-right tabular-nums">{r.videoGmv == null ? "—" : formatYen(r.videoGmv)}</td>
+                <td className="py-2 px-3 text-right tabular-nums">{r.liveGmv == null ? "—" : formatYen(r.liveGmv)}</td>
                 <td className="py-2 px-3 text-right tabular-nums">{r.adSpend == null ? "—" : formatYen(r.adSpend)}</td>
                 <td className="py-2 px-3 text-right tabular-nums">{r.adGmv == null ? "—" : formatYen(r.adGmv)}</td>
                 <td className="py-2 px-3 text-right tabular-nums">{pct(rRoi)}</td>
@@ -157,7 +240,7 @@ export default async function DailyReportIndexPage({
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={11} className="py-6 text-center text-slate-400">
+                <td colSpan={13} className="py-6 text-center text-slate-400">
                   稼働中の販売単位がありません。
                 </td>
               </tr>
@@ -172,13 +255,30 @@ export default async function DailyReportIndexPage({
   );
 }
 
-function Kpi({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+function Kpi({
+  label,
+  value,
+  accent,
+  deltaPct,
+  invert,
+}: {
+  label: string;
+  value: string;
+  accent?: boolean;
+  deltaPct?: number | null;
+  invert?: boolean;
+}) {
   return (
     <div className={`px-4 py-3 ${accent ? "bg-emerald-50" : "bg-white"}`}>
       <div className="text-xs text-slate-500">{label}</div>
       <div className={`text-base font-bold tabular-nums ${accent ? "text-emerald-700" : "text-slate-800"}`}>
         {value}
       </div>
+      {deltaPct !== undefined && (
+        <div className="mt-0.5">
+          <TrendBadge deltaPct={deltaPct} invert={invert} />
+        </div>
+      )}
     </div>
   );
 }

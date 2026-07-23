@@ -46,6 +46,29 @@ export function DailyAdChart({ data }: { data: DailyAdPoint[] }) {
   );
 }
 
+export type ChannelGmvPoint = {
+  day: string;
+  動画GMV: number;
+  ライブGMV: number;
+};
+
+/** 動画GMV・ライブGMVの積み上げ棒グラフ（チャネル別売上の推移） */
+export function ChannelGmvChart({ data }: { data: ChannelGmvPoint[] }) {
+  return (
+    <ResponsiveContainer width="100%" height={200}>
+      <ComposedChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+        <XAxis dataKey="day" tick={{ fontSize: 12 }} />
+        <YAxis tick={{ fontSize: 12 }} />
+        <Tooltip />
+        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <Bar dataKey="動画GMV" stackId="gmv" fill="#0ea5e9" />
+        <Bar dataKey="ライブGMV" stackId="gmv" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+      </ComposedChart>
+    </ResponsiveContainer>
+  );
+}
+
 export type CreativePoint = {
   day: string;
   動画投稿数: number;

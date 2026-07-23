@@ -3,6 +3,8 @@
 export type DailyReportLike = {
   videoPosts?: number | null;
   liveCount?: number | null;
+  videoGmv?: number | null; // 動画投稿経由の売上（案件進捗管理の週次実績から反映）
+  liveGmv?: number | null; // ライブ配信経由の売上（案件進捗管理の週次実績から反映）
   adSpend?: number | null;
   adGmv?: number | null;
   orderCount?: number | null;
@@ -39,6 +41,12 @@ export function budgetConsumptionRate(
   const budget = effectiveDailyBudget(r, unitDailyAdBudget);
   if (r.adSpend == null || !budget) return null;
   return Math.round((r.adSpend / budget) * 1000) / 10;
+}
+
+/** 動画GMV＋ライブGMVの合計（コンテンツ経由の売上合計）。両方nullならnull */
+export function contentGmvTotal(r: DailyReportLike): number | null {
+  if (r.videoGmv == null && r.liveGmv == null) return null;
+  return (r.videoGmv ?? 0) + (r.liveGmv ?? 0);
 }
 
 /** 日付を "M/D" ラベルに */
@@ -123,6 +131,11 @@ export function periodLabel(period: Period, anchor: Date): string {
   return `${dayLabel(anchor)}週(${dayLabel(anchor)}〜${dayLabel(last)})`;
 }
 
+/** 比較対象期間を指す言葉（前日/先週/先月） */
+export function previousPeriodWord(period: Period): string {
+  return period === "day" ? "前日" : period === "week" ? "先週" : "先月";
+}
+
 /** 複数件の日次レポートを数値項目ごとに合算し、1件分の集計値として返す */
 export function sumReports(rows: DailyReportLike[]): DailyReportLike {
   const sum = (key: keyof DailyReportLike) => {
@@ -132,6 +145,8 @@ export function sumReports(rows: DailyReportLike[]): DailyReportLike {
   return {
     videoPosts: sum("videoPosts"),
     liveCount: sum("liveCount"),
+    videoGmv: sum("videoGmv"),
+    liveGmv: sum("liveGmv"),
     adSpend: sum("adSpend"),
     adGmv: sum("adGmv"),
     orderCount: sum("orderCount"),
@@ -145,6 +160,8 @@ export type WeekProgressLike = {
   weekStart: Date;
   videoPosts?: number | null;
   liveCount?: number | null;
+  videoGmv?: number | null;
+  liveGmv?: number | null;
 };
 
 /**
@@ -156,12 +173,12 @@ function ceilToUtcMidnight(d: Date): Date {
   return new Date(Math.ceil(d.getTime() / day) * day);
 }
 
-/** 期間[start, end)に含まれる週次実績(WeeklyProgress)の動画投稿数・ライブ実施回数を合算 */
+/** 期間[start, end)に含まれる週次実績(WeeklyProgress)の動画投稿数・ライブ実施回数・動画GMV・ライブGMVを合算 */
 export function weeklyCreativeTotals(
   weeks: WeekProgressLike[],
   start: Date,
   end: Date
-): { videoPosts: number; liveCount: number; hasData: boolean } {
+): { videoPosts: number; liveCount: number; videoGmv: number; liveGmv: number; hasData: boolean } {
   const matched = weeks.filter((w) => {
     const normalized = ceilToUtcMidnight(w.weekStart);
     return normalized >= start && normalized < end;
@@ -169,13 +186,16 @@ export function weeklyCreativeTotals(
   return {
     videoPosts: matched.reduce((s, w) => s + (w.videoPosts ?? 0), 0),
     liveCount: matched.reduce((s, w) => s + (w.liveCount ?? 0), 0),
+    videoGmv: matched.reduce((s, w) => s + (w.videoGmv ?? 0), 0),
+    liveGmv: matched.reduce((s, w) => s + (w.liveGmv ?? 0), 0),
     hasData: matched.length > 0,
   };
 }
 
 /**
  * 案件進捗管理（週次実績 WeeklyProgress）に該当期間のデータがあれば、
- * レポートのクリエイティブ指標（動画投稿数・ライブ実施回数）を自動的にそちらから反映する。
+ * レポートのクリエイティブ指標（動画投稿数・ライブ実施回数）とチャネル別売上
+ * （動画GMV・ライブGMV）を自動的にそちらから反映する。
  * 日次(period="day")は週次実績を1日単位に配分できないため対象外（日次入力のまま）。
  */
 export function withWeeklyCreative<T extends DailyReportLike>(
@@ -188,7 +208,13 @@ export function withWeeklyCreative<T extends DailyReportLike>(
   if (period === "day") return data;
   const wt = weeklyCreativeTotals(weeks, start, end);
   if (!wt.hasData) return data;
-  return { ...data, videoPosts: wt.videoPosts, liveCount: wt.liveCount };
+  return {
+    ...data,
+    videoPosts: wt.videoPosts,
+    liveCount: wt.liveCount,
+    videoGmv: wt.videoGmv,
+    liveGmv: wt.liveGmv,
+  };
 }
 
 /** 直近count期間分のバケット（古い→新しい順）。each bucket は該当rowsをsumReportsで合算し、週次実績があれば自動反映する */
@@ -215,4 +241,85 @@ export function recentBuckets(
       data: withWeeklyCreative(summed, weeks, period, start, end),
     };
   });
+}
+
+/** 現在値と前期間値から増減率(%)を算出する */
+export function trendPct(
+  current: number | null | undefined,
+  previous: number | null | undefined
+): number | null {
+  if (current == null || previous == null) return null;
+  if (previous === 0) return current === 0 ? 0 : null;
+  return Math.round(((current - previous) / previous) * 1000) / 10;
+}
+
+/** サマリー示唆生成に渡す入力値（現在値・前期間値） */
+export type InsightInput = {
+  period: Period;
+  adGmv: number | null | undefined;
+  adGmvPrev: number | null | undefined;
+  adSpend: number | null | undefined;
+  roi: number | null | undefined;
+  roiPrev: number | null | undefined;
+  videoGmv: number | null | undefined;
+  liveGmv: number | null | undefined;
+  orderCount: number | null | undefined;
+  orderCountPrev: number | null | undefined;
+  cpa: number | null | undefined;
+  cpaPrev: number | null | undefined;
+  budgetRate: number | null | undefined;
+};
+
+/** 数字から読み取れる示唆を日本語の箇条書きにまとめる（決定的なルールベース、AI生成ではない） */
+export function buildInsights(input: InsightInput): string[] {
+  const insights: string[] = [];
+  const w = previousPeriodWord(input.period);
+
+  const hasAdData = (input.adGmv ?? 0) !== 0 || (input.adGmvPrev ?? 0) !== 0;
+  const gmvChange = hasAdData ? trendPct(input.adGmv, input.adGmvPrev) : null;
+  if (gmvChange != null) {
+    if (gmvChange > 0) insights.push(`広告経由の売上は${w}比 +${gmvChange}% と伸びています。`);
+    else if (gmvChange < 0) insights.push(`広告経由の売上は${w}比 ${gmvChange}% と減少しています。`);
+    else insights.push(`広告経由の売上は${w}と横ばいです。`);
+  }
+
+  if (input.roi != null && input.roiPrev != null) {
+    const diff = Math.round((input.roi - input.roiPrev) * 10) / 10;
+    if (Math.abs(diff) >= 1) {
+      insights.push(
+        `ROIは${w}比 ${diff > 0 ? "+" : ""}${diff}pt${diff > 0 ? "改善しています" : "悪化しています"}。`
+      );
+    }
+  }
+
+  const video = input.videoGmv ?? 0;
+  const live = input.liveGmv ?? 0;
+  const contentTotal = video + live;
+  if (contentTotal > 0) {
+    const dominant = video >= live ? "動画投稿" : "ライブ配信";
+    const share = Math.round(((video >= live ? video : live) / contentTotal) * 100);
+    insights.push(`コンテンツ経由の売上は${dominant}が中心（全体の${share}%）です。`);
+  }
+
+  if (input.budgetRate != null && input.budgetRate >= 100) {
+    insights.push(`日予算消化率が${input.budgetRate}%に達しています。予算超過に注意してください。`);
+  } else if (input.budgetRate != null && input.budgetRate >= 90) {
+    insights.push(`日予算消化率が${input.budgetRate}%と高めです。`);
+  }
+
+  const cpaChange = trendPct(input.cpa, input.cpaPrev);
+  if (cpaChange != null && Math.abs(cpaChange) >= 5) {
+    insights.push(
+      `CPAは${w}比 ${cpaChange > 0 ? "+" : ""}${cpaChange}% ${cpaChange > 0 ? "悪化（上昇）しています" : "改善（低下）しています"}。`
+    );
+  }
+
+  const orderChange = trendPct(input.orderCount, input.orderCountPrev);
+  if (orderChange != null && Math.abs(orderChange) >= 5) {
+    insights.push(`注文数は${w}比 ${orderChange > 0 ? "+" : ""}${orderChange}% ${orderChange > 0 ? "増加" : "減少"}しています。`);
+  }
+
+  if (insights.length === 0) insights.push("比較できるデータが十分にありません。");
+
+  return insights;
 }

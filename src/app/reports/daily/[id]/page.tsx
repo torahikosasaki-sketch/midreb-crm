@@ -11,13 +11,25 @@ import {
   normalizeAnchor,
   periodRange,
   periodLabel,
+  previousPeriodWord,
+  trendPct,
+  buildInsights,
   recentBuckets,
+  shiftAnchor,
   ymdUtc,
   type Period,
 } from "@/lib/reports";
 import { PrintButton } from "@/components/PrintButton";
 import { ReportPeriodPicker } from "@/components/ReportPeriodPicker";
-import { DailyAdChart, CreativeChart, type DailyAdPoint, type CreativePoint } from "@/components/DailyReportChart";
+import { TrendBadge } from "@/components/TrendBadge";
+import {
+  DailyAdChart,
+  CreativeChart,
+  ChannelGmvChart,
+  type DailyAdPoint,
+  type CreativePoint,
+  type ChannelGmvPoint,
+} from "@/components/DailyReportChart";
 import { unitBrandLabel } from "@/lib/progress";
 
 export const dynamic = "force-dynamic";
@@ -49,7 +61,7 @@ export default async function DailyReportDetailPage({
     where: { id },
     include: {
       dailyReports: { orderBy: { reportDate: "asc" } },
-      weeks: { select: { weekStart: true, videoPosts: true, liveCount: true } },
+      weeks: { select: { weekStart: true, videoPosts: true, liveCount: true, videoGmv: true, liveGmv: true } },
       account: { select: { name: true } },
     },
   });
@@ -64,6 +76,33 @@ export default async function DailyReportDetailPage({
   const selCpa = cpa(selected);
   const selRate = budgetConsumptionRate(selected, unit.dailyAdBudget);
 
+  // 前期間（比較用）
+  const prevAnchor = shiftAnchor(period, anchor, -1);
+  const { start: prevStart, end: prevEnd } = periodRange(period, prevAnchor);
+  const prevRows = reports.filter((r) => r.reportDate >= prevStart && r.reportDate < prevEnd);
+  const previous = withWeeklyCreative(sumReports(prevRows), unit.weeks, period, prevStart, prevEnd);
+  const prevRoi = roi(previous);
+  const prevCpa = cpa(previous);
+  const prevRate = budgetConsumptionRate(previous, unit.dailyAdBudget);
+
+  const insights = buildInsights({
+    period,
+    adGmv: selected.adGmv,
+    adGmvPrev: previous.adGmv,
+    adSpend: selected.adSpend,
+    roi: selRoi,
+    roiPrev: prevRoi,
+    videoGmv: selected.videoGmv,
+    liveGmv: selected.liveGmv,
+    orderCount: selected.orderCount,
+    orderCountPrev: previous.orderCount,
+    cpa: selCpa,
+    cpaPrev: prevCpa,
+    budgetRate: selRate,
+  });
+  const prevWord = previousPeriodWord(period);
+  const summaryTitle = period === "day" ? "本日のサマリー" : period === "week" ? "今週のサマリー" : "今月のサマリー";
+
   // 直近N期間分の推移
   const buckets = recentBuckets(reports, period, BUCKET_COUNT[period], anchor, unit.weeks);
   const adChartData: DailyAdPoint[] = buckets.map((b) => ({
@@ -77,6 +116,12 @@ export default async function DailyReportDetailPage({
     動画投稿数: b.data.videoPosts ?? 0,
     ライブ実施回数: b.data.liveCount ?? 0,
   }));
+  const channelGmvChartData: ChannelGmvPoint[] = buckets.map((b) => ({
+    day: b.label,
+    動画GMV: b.data.videoGmv ?? 0,
+    ライブGMV: b.data.liveGmv ?? 0,
+  }));
+  const hasChannelGmv = buckets.some((b) => b.data.videoGmv != null || b.data.liveGmv != null);
 
   return (
     <div className="p-6 max-w-6xl">
@@ -106,18 +151,46 @@ export default async function DailyReportDetailPage({
         </div>
       </div>
 
+      {/* サマリー（示唆） */}
+      <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-4 mb-6">
+        <h2 className="text-sm font-semibold text-emerald-800 mb-2">
+          {summaryTitle}
+          <span className="ml-2 text-xs font-normal text-slate-500">（{prevWord}比較）</span>
+        </h2>
+        <ul className="space-y-1">
+          {insights.map((text, i) => (
+            <li key={i} className="text-sm text-slate-700 flex items-start gap-1.5">
+              <span className="text-emerald-500 mt-0.5">・</span>
+              {text}
+            </li>
+          ))}
+        </ul>
+      </div>
+
       {/* 選択期間のKPI（印刷対象） */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-        <Kpi label="動画投稿数" value={nz(selected.videoPosts)} />
-        <Kpi label="ライブ実施回数" value={nz(selected.liveCount)} />
-        <Kpi label="広告費" value={selected.adSpend == null ? "—" : formatYen(selected.adSpend)} />
-        <Kpi label="売上(GMV)" value={selected.adGmv == null ? "—" : formatYen(selected.adGmv)} accent />
-        <Kpi label="ROI" value={pct(selRoi)} />
-        <Kpi label="注文数" value={nz(selected.orderCount)} />
-        <Kpi label="CPA" value={selCpa == null ? "—" : formatYen(selCpa)} />
-        <Kpi label="日予算消化率" value={pct(selRate)} />
-        <Kpi label="配送 売上個数" value={nz(selected.shippingQty)} />
-        <Kpi label="配送 売上金額" value={selected.shippingAmount == null ? "—" : formatYen(selected.shippingAmount)} />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+        <Kpi label="動画投稿数" value={nz(selected.videoPosts)} deltaPct={trendPct(selected.videoPosts, previous.videoPosts)} />
+        <Kpi label="ライブ実施回数" value={nz(selected.liveCount)} deltaPct={trendPct(selected.liveCount, previous.liveCount)} />
+        <Kpi label="広告費" value={selected.adSpend == null ? "—" : formatYen(selected.adSpend)} deltaPct={trendPct(selected.adSpend, previous.adSpend)} invert />
+        <Kpi label="広告経由GMV" value={selected.adGmv == null ? "—" : formatYen(selected.adGmv)} deltaPct={trendPct(selected.adGmv, previous.adGmv)} accent />
+        <Kpi label="ROI" value={pct(selRoi)} deltaPct={trendPct(selRoi, prevRoi)} />
+        <Kpi label="注文数" value={nz(selected.orderCount)} deltaPct={trendPct(selected.orderCount, previous.orderCount)} />
+        <Kpi label="CPA" value={selCpa == null ? "—" : formatYen(selCpa)} deltaPct={trendPct(selCpa, prevCpa)} invert />
+        <Kpi label="日予算消化率" value={pct(selRate)} deltaPct={trendPct(selRate, prevRate)} invert />
+      </div>
+      <div className="grid grid-cols-3 gap-3 mb-3 max-w-2xl">
+        <Kpi label="動画経由GMV" value={selected.videoGmv == null ? "—" : formatYen(selected.videoGmv)} deltaPct={trendPct(selected.videoGmv, previous.videoGmv)} />
+        <Kpi label="ライブ経由GMV" value={selected.liveGmv == null ? "—" : formatYen(selected.liveGmv)} deltaPct={trendPct(selected.liveGmv, previous.liveGmv)} />
+        <Kpi
+          label="コンテンツ合計GMV"
+          value={selected.videoGmv == null && selected.liveGmv == null ? "—" : formatYen((selected.videoGmv ?? 0) + (selected.liveGmv ?? 0))}
+          deltaPct={trendPct((selected.videoGmv ?? 0) + (selected.liveGmv ?? 0), (previous.videoGmv ?? 0) + (previous.liveGmv ?? 0))}
+          accent
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-3 mb-8 max-w-md">
+        <Kpi label="配送 売上個数" value={nz(selected.shippingQty)} deltaPct={trendPct(selected.shippingQty, previous.shippingQty)} />
+        <Kpi label="配送 売上金額" value={selected.shippingAmount == null ? "—" : formatYen(selected.shippingAmount)} deltaPct={trendPct(selected.shippingAmount, previous.shippingAmount)} />
       </div>
       {selectedRows.length === 0 && selected.videoPosts == null && selected.liveCount == null && (
         <p className="print:hidden text-sm text-slate-400 -mt-6 mb-8">
@@ -130,7 +203,7 @@ export default async function DailyReportDetailPage({
       )}
       {selectedRows.length === 0 && (selected.videoPosts != null || selected.liveCount != null) && (
         <p className="print:hidden text-sm text-slate-400 -mt-6 mb-8">
-          動画投稿数・ライブ実施回数は案件進捗管理の週次実績から自動反映されています。広告・配送の実績は
+          動画投稿数・ライブ実施回数・チャネル別GMVは案件進捗管理の週次実績から自動反映されています。広告・配送の実績は
           <Link href={`/progress/${id}`} className="text-emerald-600 hover:underline">
             案件進捗管理
           </Link>
@@ -161,6 +234,20 @@ export default async function DailyReportDetailPage({
               <p className="text-sm text-slate-400 py-10 text-center">記録がありません</p>
             ) : (
               <CreativeChart data={creativeChartData} />
+            )}
+          </div>
+        </section>
+        <section>
+          <h2 className="text-sm font-semibold text-slate-700 mb-2">
+            チャネル別売上（動画/ライブ）推移（直近{BUCKET_COUNT[period]}{period === "day" ? "日" : period === "week" ? "週" : "ヶ月"}）
+          </h2>
+          <div className="rounded-lg border border-slate-200 bg-white p-4">
+            {!hasChannelGmv ? (
+              <p className="text-sm text-slate-400 py-10 text-center">
+                記録がありません（動画/ライブGMVは週次実績から反映されます）
+              </p>
+            ) : (
+              <ChannelGmvChart data={channelGmvChartData} />
             )}
           </div>
         </section>
@@ -224,11 +311,28 @@ export default async function DailyReportDetailPage({
   );
 }
 
-function Kpi({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+function Kpi({
+  label,
+  value,
+  accent,
+  deltaPct,
+  invert,
+}: {
+  label: string;
+  value: string;
+  accent?: boolean;
+  deltaPct?: number | null;
+  invert?: boolean;
+}) {
   return (
     <div className={`rounded-lg border p-3 ${accent ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-white"}`}>
       <div className={`text-xs ${accent ? "text-emerald-600" : "text-slate-500"}`}>{label}</div>
       <div className={`text-lg font-bold tabular-nums ${accent ? "text-emerald-700" : "text-slate-800"}`}>{value}</div>
+      {deltaPct !== undefined && (
+        <div className="mt-0.5">
+          <TrendBadge deltaPct={deltaPct} invert={invert} />
+        </div>
+      )}
     </div>
   );
 }
