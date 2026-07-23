@@ -1,5 +1,31 @@
 // レポート機能（日次進捗報告）の集計ヘルパー
 
+import {
+  type ResolvedPeriod,
+  mdLabel,
+  unitPeriod,
+  previousPeriod,
+  bucketConfig,
+} from "./period";
+
+// 期間モデルは period.ts に集約。下位互換のため一部を再輸出する。
+export {
+  type ResolvedPeriod,
+  type PeriodKind,
+  startOfDay,
+  ymdUtc,
+  unitPeriod,
+  resolvePeriod,
+  previousPeriod,
+  nextPeriod,
+  previousPeriodWord,
+  periodKey,
+  periodQuery,
+  bucketConfig,
+  weekStartOf,
+  buildCustom,
+} from "./period";
+
 export type DailyReportLike = {
   videoPosts?: number | null;
   liveCount?: number | null;
@@ -49,91 +75,11 @@ export function contentGmvTotal(r: DailyReportLike): number | null {
   return (r.videoGmv ?? 0) + (r.liveGmv ?? 0);
 }
 
-/** 日付を "M/D" ラベルに */
-export function dayLabel(d: Date | string): string {
-  const dt = typeof d === "string" ? new Date(d) : d;
-  return `${dt.getMonth() + 1}/${dt.getDate()}`;
-}
-
-/** "YYYY-MM-DD" (UTC深夜) を安全にDateへ。setHours(local)は使わない */
-export function startOfDay(d?: string | Date | null): Date {
-  if (d == null) {
-    const dt = new Date();
-    dt.setUTCHours(0, 0, 0, 0);
-    return dt;
-  }
-  const dt = typeof d === "string" ? new Date(d) : new Date(d.getTime());
-  dt.setUTCHours(0, 0, 0, 0);
-  return dt;
-}
-
-/** yyyy-mm-dd (UTC基準) */
-export function ymdUtc(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
-export type Period = "day" | "week" | "month";
-
-/** その週の月曜日(UTC深夜)を返す */
-function mondayOf(d: Date): Date {
-  const dt = startOfDay(d);
-  const dow = dt.getUTCDay(); // 0=日,1=月,...6=土
-  const diff = dow === 0 ? -6 : 1 - dow; // 月曜まで戻る日数
-  dt.setUTCDate(dt.getUTCDate() + diff);
-  return dt;
-}
-
-/** その月の1日(UTC深夜)を返す */
-function firstOfMonth(d: Date): Date {
-  const dt = startOfDay(d);
-  dt.setUTCDate(1);
-  return dt;
-}
-
-/** 期間の基準日を正規化（day=そのまま/week=週の月曜/month=月の1日）。UTC深夜のDateを返す */
-export function normalizeAnchor(period: Period, dateStr: string): Date {
-  const d = startOfDay(dateStr);
-  if (period === "week") return mondayOf(d);
-  if (period === "month") return firstOfMonth(d);
-  return d;
-}
-
-/** anchorを含む期間の [start, end)（endは排他的な次期間の開始）を返す */
-export function periodRange(period: Period, anchor: Date): { start: Date; end: Date } {
-  const start = new Date(anchor.getTime());
-  const end = new Date(anchor.getTime());
-  if (period === "day") {
-    end.setUTCDate(end.getUTCDate() + 1);
-  } else if (period === "week") {
-    end.setUTCDate(end.getUTCDate() + 7);
-  } else {
-    end.setUTCMonth(end.getUTCMonth() + 1);
-  }
-  return { start, end };
-}
-
-/** 前/次の期間の anchor を返す */
-export function shiftAnchor(period: Period, anchor: Date, dir: 1 | -1): Date {
-  const next = new Date(anchor.getTime());
-  if (period === "day") next.setUTCDate(next.getUTCDate() + dir);
-  else if (period === "week") next.setUTCDate(next.getUTCDate() + 7 * dir);
-  else next.setUTCMonth(next.getUTCMonth() + dir);
-  return next;
-}
-
-/** 表示用の期間ラベル */
-export function periodLabel(period: Period, anchor: Date): string {
-  if (period === "day") return ymdUtc(anchor);
-  if (period === "month") return `${anchor.getUTCFullYear()}年${anchor.getUTCMonth() + 1}月`;
-  const { end } = periodRange(period, anchor);
-  const last = new Date(end.getTime());
-  last.setUTCDate(last.getUTCDate() - 1);
-  return `${dayLabel(anchor)}週(${dayLabel(anchor)}〜${dayLabel(last)})`;
-}
-
-/** 比較対象期間を指す言葉（前日/先週/先月） */
-export function previousPeriodWord(period: Period): string {
-  return period === "day" ? "前日" : period === "week" ? "先週" : "先月";
+/** バケット用の短いラベル（day="M/D" / week="M/D週" / month="YYYY/M"） */
+function shortLabel(rp: ResolvedPeriod): string {
+  if (rp.kind === "week") return `${mdLabel(rp.start)}週`;
+  if (rp.kind === "month") return `${rp.start.getUTCFullYear()}/${rp.start.getUTCMonth() + 1}`;
+  return mdLabel(rp.start);
 }
 
 /** 複数件の日次レポートを数値項目ごとに合算し、1件分の集計値として返す */
@@ -192,20 +138,22 @@ export function weeklyCreativeTotals(
   };
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 /**
  * 案件進捗管理（週次実績 WeeklyProgress）に該当期間のデータがあれば、
  * レポートのクリエイティブ指標（動画投稿数・ライブ実施回数）とチャネル別売上
  * （動画GMV・ライブGMV）を自動的にそちらから反映する。
- * 日次(period="day")は週次実績を1日単位に配分できないため対象外（日次入力のまま）。
+ * ちょうど1日の期間（日次バケット）は週次実績を1日単位に配分できないため対象外。
  */
 export function withWeeklyCreative<T extends DailyReportLike>(
   data: T,
   weeks: WeekProgressLike[],
-  period: Period,
   start: Date,
   end: Date
 ): T {
-  if (period === "day") return data;
+  // 1日ちょうどの期間は日次入力のまま（週次実績を按分しない）
+  if (end.getTime() - start.getTime() <= DAY_MS) return data;
   const wt = weeklyCreativeTotals(weeks, start, end);
   if (!wt.hasData) return data;
   return {
@@ -217,28 +165,44 @@ export function withWeeklyCreative<T extends DailyReportLike>(
   };
 }
 
-/** 直近count期間分のバケット（古い→新しい順）。each bucket は該当rowsをsumReportsで合算し、週次実績があれば自動反映する */
+/**
+ * 推移グラフ用のバケット（古い→新しい順）。ResolvedPeriod の bucketConfig に従う。
+ * day/week/month は選択期間を最後尾に count 個さかのぼる。custom は範囲内を unit で敷き詰める。
+ * 各バケットは該当rowsをsumReportsで合算し、週次実績があれば自動反映する。
+ */
 export function recentBuckets(
   rows: (DailyReportLike & { reportDate: Date })[],
-  period: Period,
-  count: number,
-  anchor: Date = normalizeAnchor(period, ymdUtc(new Date())),
+  rp: ResolvedPeriod,
   weeks: WeekProgressLike[] = []
 ): { label: string; anchor: Date; data: DailyReportLike }[] {
-  const buckets: { label: string; anchor: Date; data: DailyReportLike }[] = [];
-  let cur = anchor;
-  for (let i = 0; i < count; i++) {
-    buckets.unshift({ label: "", anchor: cur, data: { } });
-    cur = shiftAnchor(period, cur, -1);
+  const { unit, count } = bucketConfig(rp);
+  const periods: ResolvedPeriod[] = [];
+
+  if (rp.kind === "custom") {
+    // 範囲 [start, end) を unit で左→右に敷き詰める
+    let cur = unitPeriod(unit, rp.start);
+    let guard = 0;
+    while (cur.start.getTime() < rp.end.getTime() && guard < 500) {
+      periods.push(cur);
+      cur = unitPeriod(unit, new Date(cur.end.getTime()));
+      guard++;
+    }
+  } else {
+    // 選択期間のバケットを最後尾に count 個さかのぼる
+    let cur = unitPeriod(unit, rp.start);
+    for (let i = 0; i < count; i++) {
+      periods.unshift(cur);
+      cur = previousPeriod(cur);
+    }
   }
-  return buckets.map((b) => {
-    const { start, end } = periodRange(period, b.anchor);
-    const matched = rows.filter((r) => r.reportDate >= start && r.reportDate < end);
+
+  return periods.map((b) => {
+    const matched = rows.filter((r) => r.reportDate >= b.start && r.reportDate < b.end);
     const summed = sumReports(matched);
     return {
-      label: periodLabel(period, b.anchor),
-      anchor: b.anchor,
-      data: withWeeklyCreative(summed, weeks, period, start, end),
+      label: shortLabel(b),
+      anchor: b.start,
+      data: withWeeklyCreative(summed, weeks, b.start, b.end),
     };
   });
 }
@@ -273,7 +237,7 @@ export type InsightItem = { tone: InsightTone; text: string };
 
 /** 示唆生成に渡す入力（現在期間・前期間の集計値と算出済み指標） */
 export type InsightInput = {
-  period: Period;
+  prevWord: string; // 比較対象を指す言葉（先週/先月/前期間 など）
   current: DailyReportLike;
   previous: DailyReportLike;
   roiCur: number | null;
@@ -292,7 +256,7 @@ const TONE_ORDER: Record<InsightTone, number> = { bad: 0, warn: 1, good: 2, info
  */
 export function buildInsights(input: InsightInput): InsightItem[] {
   const items: InsightItem[] = [];
-  const w = previousPeriodWord(input.period);
+  const w = input.prevWord;
   const { current: cur, previous: prev } = input;
 
   // 1. コンテンツ経由売上（動画＋ライブ）のヘッドライン＋トレンド

@@ -1,17 +1,17 @@
 import { prisma } from "@/lib/prisma";
 import { toCsv } from "@/lib/csv";
-import { roi, cpa, budgetConsumptionRate, normalizeAnchor, recentBuckets, ymdUtc, type Period } from "@/lib/reports";
+import { roi, cpa, budgetConsumptionRate, resolvePeriod, recentBuckets, ymdUtc } from "@/lib/reports";
 import { unitBrandLabel } from "@/lib/progress";
-
-const BUCKET_COUNT: Record<Period, number> = { day: 30, week: 12, month: 12 };
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { searchParams } = new URL(request.url);
-  const periodParam = searchParams.get("period");
-  const period: Period = periodParam === "week" || periodParam === "month" ? periodParam : "day";
-  const dateStr = searchParams.get("date") ?? new Date().toISOString().slice(0, 10);
-  const anchor = normalizeAnchor(period, dateStr);
+  const rp = resolvePeriod({
+    period: searchParams.get("period") ?? undefined,
+    date: searchParams.get("date") ?? undefined,
+    from: searchParams.get("from") ?? undefined,
+    to: searchParams.get("to") ?? undefined,
+  });
 
   const unit = await prisma.salesUnit.findUnique({
     where: { id },
@@ -23,7 +23,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   });
   if (!unit) return new Response("Not Found", { status: 404 });
 
-  const buckets = recentBuckets(unit.dailyReports, period, BUCKET_COUNT[period], anchor, unit.weeks);
+  const buckets = recentBuckets(unit.dailyReports, rp, unit.weeks);
 
   const rows = buckets.map((b) => [
     b.label,
@@ -61,7 +61,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   );
 
   const label = unit.productSku ?? unitBrandLabel(unit);
-  const filename = `${label}_${period}_${ymdUtc(anchor)}.csv`;
+  const filename = `${label}_${rp.kind}_${ymdUtc(rp.start)}.csv`;
   return new Response(csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",

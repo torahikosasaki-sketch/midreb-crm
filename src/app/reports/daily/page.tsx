@@ -9,18 +9,16 @@ import {
   sumReports,
   withWeeklyCreative,
   contentGmvTotal,
-  normalizeAnchor,
-  periodRange,
-  periodLabel,
+  resolvePeriod,
+  previousPeriod,
   previousPeriodWord,
+  periodQuery,
   trendPct,
   buildInsights,
-  shiftAnchor,
   ymdUtc,
-  type Period,
   type DailyReportLike,
 } from "@/lib/reports";
-import { ReportPeriodPicker } from "@/components/ReportPeriodPicker";
+import { ReportRangePicker } from "@/components/ReportRangePicker";
 import { PrintButton } from "@/components/PrintButton";
 import { TrendBadge } from "@/components/TrendBadge";
 import { StatTile } from "@/components/StatTile";
@@ -34,11 +32,7 @@ export const dynamic = "force-dynamic";
 const nz = (n: number | null | undefined) => (n == null ? "—" : n.toLocaleString("ja-JP"));
 const pct = (n: number | null) => (n == null ? "—" : `${n}%`);
 
-function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-async function loadTotals(period: Period, start: Date, end: Date) {
+async function loadTotals(start: Date, end: Date) {
   const units = await prisma.salesUnit.findMany({
     where: { status: "稼働中" },
     include: {
@@ -50,7 +44,7 @@ async function loadTotals(period: Period, start: Date, end: Date) {
   });
 
   const rows = units.map((u) => {
-    const r = withWeeklyCreative(sumReports(u.dailyReports), u.weeks, period, start, end);
+    const r = withWeeklyCreative(sumReports(u.dailyReports), u.weeks, start, end);
     return { u, r, roi: roi(r), cpa: cpa(r), rate: budgetConsumptionRate(r, u.dailyAdBudget), contentGmv: contentGmvTotal(r) ?? 0 };
   });
 
@@ -102,25 +96,22 @@ async function loadTotals(period: Period, start: Date, end: Date) {
 export default async function DailyReportIndexPage({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string; period?: string }>;
+  searchParams: Promise<{ date?: string; period?: string; from?: string; to?: string }>;
 }) {
-  const { date, period: periodParam } = await searchParams;
-  const period: Period = periodParam === "week" || periodParam === "month" ? periodParam : "day";
-  const dateStr = date ?? todayStr();
-  const anchor = normalizeAnchor(period, dateStr);
-  const anchorStr = ymdUtc(anchor);
-  const { start, end } = periodRange(period, anchor);
-  const prevAnchor = shiftAnchor(period, anchor, -1);
-  const { start: prevStart, end: prevEnd } = periodRange(period, prevAnchor);
+  const sp = await searchParams;
+  const rp = resolvePeriod(sp);
+  const prev = previousPeriod(rp);
+  const query = periodQuery(rp);
 
   const [current, previous] = await Promise.all([
-    loadTotals(period, start, end),
-    loadTotals(period, prevStart, prevEnd),
+    loadTotals(rp.start, rp.end),
+    loadTotals(prev.start, prev.end),
   ]);
   const { rows } = current;
 
+  const prevWord = previousPeriodWord(rp);
   const insights = buildInsights({
-    period,
+    prevWord,
     current: current.agg,
     previous: previous.agg,
     roiCur: current.totalRoi,
@@ -130,8 +121,8 @@ export default async function DailyReportIndexPage({
     budgetRate: current.totalRate,
   });
 
-  const prevWord = previousPeriodWord(period);
-  const summaryTitle = period === "day" ? "本日のサマリー" : period === "week" ? "今週のサマリー" : "今月のサマリー";
+  const summaryTitle =
+    rp.kind === "day" ? "本日のサマリー" : rp.kind === "week" ? "今週のサマリー" : rp.kind === "month" ? "今月のサマリー" : "期間のサマリー";
 
   // 販売単位別 コンテンツ売上ランキング（大きい順）
   const ranked = [...rows].sort((a, b) => b.contentGmv - a.contentGmv);
@@ -147,12 +138,12 @@ export default async function DailyReportIndexPage({
       <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
         <div>
           <h1 className="text-xl font-bold">日次進捗報告</h1>
-          <p className="text-sm text-slate-500">{periodLabel(period, anchor)} の実績（稼働中の販売単位 全体）</p>
+          <p className="text-sm text-slate-500">{rp.label} の実績（稼働中の販売単位 全体）</p>
         </div>
         <div className="flex items-center gap-2">
-          <ReportPeriodPicker date={anchorStr} period={period} />
+          <ReportRangePicker kind={rp.kind} date={ymdUtc(rp.start)} from={sp.from} to={sp.to} />
           <a
-            href={`/reports/daily/csv?date=${anchorStr}&period=${period}`}
+            href={`/reports/daily/csv?${query}`}
             className="print:hidden rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
             CSV出力
@@ -220,7 +211,7 @@ export default async function DailyReportIndexPage({
             return (
               <Link
                 key={u.id}
-                href={`/reports/daily/${u.id}?date=${anchorStr}&period=${period}`}
+                href={`/reports/daily/${u.id}?${query}`}
                 className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"
               >
                 <div className="w-40 shrink-0 min-w-0">
@@ -274,7 +265,7 @@ export default async function DailyReportIndexPage({
               {rows.map(({ u, r, roi: rRoi, cpa: rCpa, rate }) => (
                 <tr key={u.id} className="border-b border-slate-100 hover:bg-slate-50">
                   <td className="py-2 px-3">
-                    <Link href={`/reports/daily/${u.id}?date=${anchorStr}&period=${period}`} className="font-medium text-slate-800 hover:text-emerald-700 hover:underline">
+                    <Link href={`/reports/daily/${u.id}?${query}`} className="font-medium text-slate-800 hover:text-emerald-700 hover:underline">
                       {u.productSku ?? unitBrandLabel(u)}
                     </Link>
                   </td>

@@ -6,20 +6,20 @@ import {
   budgetConsumptionRate,
   sumReports,
   withWeeklyCreative,
-  normalizeAnchor,
-  periodRange,
+  resolvePeriod,
   ymdUtc,
-  type Period,
 } from "@/lib/reports";
 import { unitBrandLabel } from "@/lib/progress";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const periodParam = searchParams.get("period");
-  const period: Period = periodParam === "week" || periodParam === "month" ? periodParam : "day";
-  const dateStr = searchParams.get("date") ?? new Date().toISOString().slice(0, 10);
-  const anchor = normalizeAnchor(period, dateStr);
-  const { start, end } = periodRange(period, anchor);
+  const rp = resolvePeriod({
+    period: searchParams.get("period") ?? undefined,
+    date: searchParams.get("date") ?? undefined,
+    from: searchParams.get("from") ?? undefined,
+    to: searchParams.get("to") ?? undefined,
+  });
+  const { start, end } = rp;
 
   const units = await prisma.salesUnit.findMany({
     where: { status: "稼働中" },
@@ -32,7 +32,7 @@ export async function GET(request: Request) {
   });
 
   const rows = units.map((u) => {
-    const r = withWeeklyCreative(sumReports(u.dailyReports), u.weeks, period, start, end);
+    const r = withWeeklyCreative(sumReports(u.dailyReports), u.weeks, start, end);
     return [
       u.productSku ?? unitBrandLabel(u),
       unitBrandLabel(u),
@@ -74,7 +74,7 @@ export async function GET(request: Request) {
   return new Response(csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="daily-report_${period}_${ymdUtc(anchor)}.csv"`,
+      "Content-Disposition": `attachment; filename="daily-report_${rp.kind}_${ymdUtc(rp.start)}.csv"`,
     },
   });
 }

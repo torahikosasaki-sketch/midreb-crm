@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { weekStartOf } from "@/lib/period";
 
 function str(fd: FormData, key: string): string | null {
   const v = fd.get(key);
@@ -14,10 +15,11 @@ function num(fd: FormData, key: string): number | null {
   return s == null ? null : Math.round(Number(s));
 }
 
-/** 週次実績を記録（同一販売単位×週があれば上書き＝upsert） */
+/** 週次実績を記録（同一販売単位×週があれば上書き＝upsert）。週開始日はレポートと同じ金曜起点にスナップする。 */
 export async function createWeek(salesUnitId: string, fd: FormData) {
   const weekStartStr = str(fd, "weekStart");
-  const weekStart = weekStartStr ? new Date(weekStartStr) : new Date();
+  // 入力日を含む週の「金曜(UTC深夜)」に正規化（レポートの週定義と統一）
+  const weekStart = weekStartOf(weekStartStr ? new Date(weekStartStr) : new Date());
   const data = {
     targetCount: num(fd, "targetCount"),
     videoPosts: num(fd, "videoPosts"),

@@ -9,19 +9,18 @@ import {
   sumReports,
   withWeeklyCreative,
   contentGmvTotal,
-  normalizeAnchor,
-  periodRange,
-  periodLabel,
+  resolvePeriod,
+  previousPeriod,
   previousPeriodWord,
+  periodQuery,
+  bucketConfig,
   trendPct,
   buildInsights,
   recentBuckets,
-  shiftAnchor,
   ymdUtc,
-  type Period,
 } from "@/lib/reports";
 import { PrintButton } from "@/components/PrintButton";
-import { ReportPeriodPicker } from "@/components/ReportPeriodPicker";
+import { ReportRangePicker } from "@/components/ReportRangePicker";
 import { TrendBadge } from "@/components/TrendBadge";
 import { StatTile } from "@/components/StatTile";
 import { InsightList } from "@/components/InsightList";
@@ -45,26 +44,18 @@ export const dynamic = "force-dynamic";
 const nz = (n: number | null | undefined) => (n == null ? "—" : n.toLocaleString("ja-JP"));
 const pct = (n: number | null) => (n == null ? "—" : `${n}%`);
 
-function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-const BUCKET_COUNT: Record<Period, number> = { day: 30, week: 12, month: 12 };
-const periodUnit = (p: Period) => (p === "day" ? "日" : p === "week" ? "週" : "ヶ月");
-
 export default async function DailyReportDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ date?: string; period?: string }>;
+  searchParams: Promise<{ date?: string; period?: string; from?: string; to?: string }>;
 }) {
   const { id } = await params;
-  const { date, period: periodParam } = await searchParams;
-  const period: Period = periodParam === "week" || periodParam === "month" ? periodParam : "day";
-  const dateStr = date ?? todayStr();
-  const anchor = normalizeAnchor(period, dateStr);
-  const anchorStr = ymdUtc(anchor);
+  const sp = await searchParams;
+  const rp = resolvePeriod(sp);
+  const prev = previousPeriod(rp);
+  const query = periodQuery(rp);
 
   const unit = await prisma.salesUnit.findUnique({
     where: { id },
@@ -77,9 +68,9 @@ export default async function DailyReportDetailPage({
   if (!unit) notFound();
 
   const reports = unit.dailyReports;
-  const { start, end } = periodRange(period, anchor);
+  const { start, end } = rp;
   const selectedRows = reports.filter((r) => r.reportDate >= start && r.reportDate < end);
-  const selected = withWeeklyCreative(sumReports(selectedRows), unit.weeks, period, start, end);
+  const selected = withWeeklyCreative(sumReports(selectedRows), unit.weeks, start, end);
 
   const selRoi = roi(selected);
   const selCpa = cpa(selected);
@@ -87,16 +78,15 @@ export default async function DailyReportDetailPage({
   const selContentGmv = contentGmvTotal(selected);
 
   // 前期間（比較用）
-  const prevAnchor = shiftAnchor(period, anchor, -1);
-  const { start: prevStart, end: prevEnd } = periodRange(period, prevAnchor);
-  const prevRows = reports.filter((r) => r.reportDate >= prevStart && r.reportDate < prevEnd);
-  const previous = withWeeklyCreative(sumReports(prevRows), unit.weeks, period, prevStart, prevEnd);
+  const prevRows = reports.filter((r) => r.reportDate >= prev.start && r.reportDate < prev.end);
+  const previous = withWeeklyCreative(sumReports(prevRows), unit.weeks, prev.start, prev.end);
   const prevRoi = roi(previous);
   const prevCpa = cpa(previous);
   const prevContentGmv = contentGmvTotal(previous);
 
+  const prevWord = previousPeriodWord(rp);
   const insights = buildInsights({
-    period,
+    prevWord,
     current: selected,
     previous,
     roiCur: selRoi,
@@ -105,11 +95,16 @@ export default async function DailyReportDetailPage({
     cpaPrev: prevCpa,
     budgetRate: selRate,
   });
-  const prevWord = previousPeriodWord(period);
-  const summaryTitle = period === "day" ? "本日のサマリー" : period === "week" ? "今週のサマリー" : "今月のサマリー";
+  const summaryTitle =
+    rp.kind === "day" ? "本日のサマリー" : rp.kind === "week" ? "今週のサマリー" : rp.kind === "month" ? "今月のサマリー" : "期間のサマリー";
+
+  // 推移グラフのバケット設定＋タイトル用ラベル
+  const bc = bucketConfig(rp);
+  const bucketUnitLabel = bc.unit === "day" ? "日" : bc.unit === "week" ? "週" : "ヶ月";
+  const trendSuffix = `直近${bc.count}${bucketUnitLabel}`;
 
   // 直近N期間分の推移
-  const buckets = recentBuckets(reports, period, BUCKET_COUNT[period], anchor, unit.weeks);
+  const buckets = recentBuckets(reports, rp, unit.weeks);
   const adChartData: DailyAdPoint[] = buckets.map((b) => ({
     day: b.label,
     広告費: b.data.adSpend ?? 0,
@@ -136,7 +131,7 @@ export default async function DailyReportDetailPage({
   return (
     <div className="p-6 max-w-6xl">
       <div className="print:hidden mb-1">
-        <Link href={`/reports/daily?date=${anchorStr}&period=${period}`} className="text-sm text-emerald-600 hover:underline">
+        <Link href={`/reports/daily?${query}`} className="text-sm text-emerald-600 hover:underline">
           ← 日次進捗報告
         </Link>
       </div>
@@ -146,13 +141,13 @@ export default async function DailyReportDetailPage({
           <h1 className="text-xl font-bold">{unit.productSku ?? unitBrandLabel(unit)}</h1>
           <p className="text-sm text-slate-500">
             {unitBrandLabel(unit)}
-            {unit.store ? ` ・ ${unit.store}` : ""} ・ {periodLabel(period, anchor)}
+            {unit.store ? ` ・ ${unit.store}` : ""} ・ {rp.label}
           </p>
         </div>
         <div className="print:hidden flex items-center gap-2">
-          <ReportPeriodPicker date={anchorStr} period={period} />
+          <ReportRangePicker kind={rp.kind} date={ymdUtc(rp.start)} from={sp.from} to={sp.to} />
           <a
-            href={`/reports/daily/${id}/csv?date=${anchorStr}&period=${period}`}
+            href={`/reports/daily/${id}/csv?${query}`}
             className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
             CSV出力
@@ -226,7 +221,7 @@ export default async function DailyReportDetailPage({
       )}
       {selectedRows.length === 0 && selected.videoPosts == null && selected.liveCount == null && (
         <p className="print:hidden text-sm text-slate-400 mb-6">
-          {periodLabel(period, anchor)} の記録はまだありません。
+          {rp.label} の記録はまだありません。
           <Link href={`/progress/${id}`} className="text-emerald-600 hover:underline">案件進捗管理</Link>
           から入力してください。
         </p>
@@ -234,16 +229,16 @@ export default async function DailyReportDetailPage({
 
       {/* 推移グラフ */}
       <div className="print:hidden grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
-        <ChartCard title={`チャネル別売上（動画/ライブ）推移 ・ 直近${BUCKET_COUNT[period]}${periodUnit(period)}`}>
+        <ChartCard title={`チャネル別売上（動画/ライブ）推移 ・ ${trendSuffix}`}>
           {hasChannelGmv ? <ChannelGmvChart data={channelGmvChartData} /> : <Empty note="動画/ライブGMVは案件進捗管理の週次実績から反映されます" />}
         </ChartCard>
-        <ChartCard title={`クリエイティブ活動 推移 ・ 直近${BUCKET_COUNT[period]}${periodUnit(period)}`}>
+        <ChartCard title={`クリエイティブ活動 推移 ・ ${trendSuffix}`}>
           {reports.length === 0 && unit.weeks.length === 0 ? <Empty /> : <CreativeChart data={creativeChartData} />}
         </ChartCard>
-        <ChartCard title={`広告費 と 広告経由GMV ・ 直近${BUCKET_COUNT[period]}${periodUnit(period)}`}>
+        <ChartCard title={`広告費 と 広告経由GMV ・ ${trendSuffix}`}>
           {hasAdData ? <AdCompareChart data={adChartData} /> : <Empty note="広告実績は案件進捗管理から入力してください" />}
         </ChartCard>
-        <ChartCard title={`ROI 推移 ・ 直近${BUCKET_COUNT[period]}${periodUnit(period)}`}>
+        <ChartCard title={`ROI 推移 ・ ${trendSuffix}`}>
           {hasAdData ? <RoiTrendChart data={roiChartData} /> : <Empty note="広告実績は案件進捗管理から入力してください" />}
         </ChartCard>
       </div>

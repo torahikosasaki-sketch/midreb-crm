@@ -177,7 +177,7 @@ export default async function SalesUnitDetail({
         {/* 記録フォーム（商品固定・数値だけ） */}
         <form action={createWeek.bind(null, id)} className="flex flex-wrap items-end gap-2 mt-3 rounded-lg border border-slate-200 bg-white p-3">
           <span className="text-sm font-medium text-slate-600 mr-1 w-full md:w-auto">今週の実績を記録:</span>
-          <Inp name="weekStart" label="週開始日 *" type="date" required w="w-36" />
+          <Inp name="weekStart" label="週内の日付 *（金曜週に自動調整）" type="date" required w="w-44" />
           <Inp name="targetCount" label={`目標(既定${unit.weeklyTarget ?? "—"})`} type="number" w="w-24" />
           <Inp name="videoPosts" label="動画投稿" type="number" />
           <Inp name="videoPosters" label="動画人数" type="number" />
@@ -192,7 +192,7 @@ export default async function SalesUnitDetail({
             記録
           </SubmitButton>
         </form>
-        <p className="text-[11px] text-slate-400 mt-1">※ 同じ週開始日で記録すると上書きされます。差分は自動算出（総販売 − 目標）。</p>
+        <p className="text-[11px] text-slate-400 mt-1">※ 週は金曜開始（金〜木）で記録されます。同じ週に記録すると上書き。差分は自動算出（総販売 − 目標）。</p>
       </section>
 
       {/* 日次実績（広告・配送・クリエイティブ）: レポート機能「日次進捗報告」の元データ */}
