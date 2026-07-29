@@ -13,16 +13,18 @@ import {
   previousPeriod,
   previousPeriodWord,
   periodQuery,
+  periodKey,
   trendPct,
   buildInsights,
   ymdUtc,
   type DailyReportLike,
 } from "@/lib/reports";
+import { getReportNote } from "@/lib/actions/reportNotes";
 import { ReportRangePicker } from "@/components/ReportRangePicker";
 import { PrintButton } from "@/components/PrintButton";
-import { TrendBadge } from "@/components/TrendBadge";
+import { TrendBadge, signedYen } from "@/components/TrendBadge";
 import { StatTile } from "@/components/StatTile";
-import { InsightList } from "@/components/InsightList";
+import { SummaryEditor } from "@/components/SummaryEditor";
 import { CompositionBar } from "@/components/CompositionBar";
 import { unitBrandLabel } from "@/lib/progress";
 import { CH } from "@/lib/reportColors";
@@ -103,9 +105,11 @@ export default async function DailyReportIndexPage({
   const prev = previousPeriod(rp);
   const query = periodQuery(rp);
 
-  const [current, previous] = await Promise.all([
+  const pKey = periodKey(rp);
+  const [current, previous, note] = await Promise.all([
     loadTotals(rp.start, rp.end),
     loadTotals(prev.start, prev.end),
+    getReportNote("all", "ALL", pKey),
   ]);
   const { rows } = current;
 
@@ -159,7 +163,11 @@ export default async function DailyReportIndexPage({
           <div className="mt-1 flex items-end gap-3">
             <span className="text-4xl font-bold text-emerald-700 tracking-tight">{formatYen(current.totalContentGmv)}</span>
             <span className="mb-1.5">
-              <TrendBadge deltaPct={trendPct(current.totalContentGmv, previous.totalContentGmv)} suffix={`vs ${prevWord}`} />
+              <TrendBadge
+                deltaPct={trendPct(current.totalContentGmv, previous.totalContentGmv)}
+                deltaAbs={signedYen(current.totalContentGmv, previous.totalContentGmv)}
+                suffix={`vs ${prevWord}`}
+              />
             </span>
           </div>
           <div className="mt-4">
@@ -170,21 +178,21 @@ export default async function DailyReportIndexPage({
         <div className="rounded-xl border border-slate-200 bg-white p-5">
           <div className="text-xs text-slate-500 font-medium mb-3">広告パフォーマンス 合計</div>
           <dl className="space-y-3">
-            <MiniRow label="広告経由GMV" value={formatYen(current.totalGmv)} delta={trendPct(current.totalGmv, previous.totalGmv)} />
+            <MiniRow label="広告経由GMV" value={formatYen(current.totalGmv)} delta={trendPct(current.totalGmv, previous.totalGmv)} deltaAbs={signedYen(current.totalGmv, previous.totalGmv)} />
             <MiniRow label="ROI" value={pct(current.totalRoi)} delta={trendPct(current.totalRoi, previous.totalRoi)} />
-            <MiniRow label="広告費" value={formatYen(current.totalAdSpend)} delta={trendPct(current.totalAdSpend, previous.totalAdSpend)} invert />
+            <MiniRow label="広告費" value={formatYen(current.totalAdSpend)} delta={trendPct(current.totalAdSpend, previous.totalAdSpend)} deltaAbs={signedYen(current.totalAdSpend, previous.totalAdSpend)} invert />
             <MiniRow label="日予算消化率" value={pct(current.totalRate)} delta={trendPct(current.totalRate, previous.totalRate)} invert />
           </dl>
         </div>
       </div>
 
-      {/* サマリー（示唆） */}
+      {/* サマリー（自動示唆＋手動メモ） */}
       <section className="mb-6">
         <h2 className="text-sm font-semibold text-slate-700 mb-2">
           {summaryTitle}
           <span className="ml-2 text-xs font-normal text-slate-400">（{prevWord}比較・数値から自動生成）</span>
         </h2>
-        <InsightList items={insights} />
+        <SummaryEditor insights={insights} scope="all" refId="ALL" periodKey={pKey} initialNote={note} prevWord={prevWord} />
       </section>
 
       {/* KPIタイル */}
@@ -295,13 +303,25 @@ export default async function DailyReportIndexPage({
   );
 }
 
-function MiniRow({ label, value, delta, invert }: { label: string; value: string; delta: number | null; invert?: boolean }) {
+function MiniRow({
+  label,
+  value,
+  delta,
+  invert,
+  deltaAbs,
+}: {
+  label: string;
+  value: string;
+  delta: number | null;
+  invert?: boolean;
+  deltaAbs?: string | null;
+}) {
   return (
     <div className="flex items-center justify-between gap-2">
       <dt className="text-xs text-slate-500">{label}</dt>
       <dd className="flex items-center gap-2">
         <span className="text-sm font-bold text-slate-800 tabular-nums">{value}</span>
-        <TrendBadge deltaPct={delta} invert={invert} />
+        <TrendBadge deltaPct={delta} invert={invert} deltaAbs={deltaAbs} />
       </dd>
     </div>
   );

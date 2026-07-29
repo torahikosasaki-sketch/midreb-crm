@@ -13,17 +13,19 @@ import {
   previousPeriod,
   previousPeriodWord,
   periodQuery,
+  periodKey,
   bucketConfig,
   trendPct,
   buildInsights,
   recentBuckets,
   ymdUtc,
 } from "@/lib/reports";
+import { getReportNote } from "@/lib/actions/reportNotes";
 import { PrintButton } from "@/components/PrintButton";
 import { ReportRangePicker } from "@/components/ReportRangePicker";
-import { TrendBadge } from "@/components/TrendBadge";
+import { TrendBadge, signedYen } from "@/components/TrendBadge";
 import { StatTile } from "@/components/StatTile";
-import { InsightList } from "@/components/InsightList";
+import { SummaryEditor } from "@/components/SummaryEditor";
 import { CompositionBar } from "@/components/CompositionBar";
 import { Sparkline } from "@/components/Sparkline";
 import {
@@ -98,6 +100,9 @@ export default async function DailyReportDetailPage({
   const summaryTitle =
     rp.kind === "day" ? "本日のサマリー" : rp.kind === "week" ? "今週のサマリー" : rp.kind === "month" ? "今月のサマリー" : "期間のサマリー";
 
+  const pKey = periodKey(rp);
+  const note = await getReportNote("unit", id, pKey);
+
   // 推移グラフのバケット設定＋タイトル用ラベル
   const bc = bucketConfig(rp);
   const bucketUnitLabel = bc.unit === "day" ? "日" : bc.unit === "week" ? "週" : "ヶ月";
@@ -167,7 +172,7 @@ export default async function DailyReportDetailPage({
                   {selContentGmv == null ? "—" : formatYen(selContentGmv)}
                 </span>
                 <span className="mb-1.5">
-                  <TrendBadge deltaPct={trendPct(selContentGmv, prevContentGmv)} suffix={`vs ${prevWord}`} />
+                  <TrendBadge deltaPct={trendPct(selContentGmv, prevContentGmv)} deltaAbs={signedYen(selContentGmv, prevContentGmv)} suffix={`vs ${prevWord}`} />
                 </span>
               </div>
             </div>
@@ -183,21 +188,21 @@ export default async function DailyReportDetailPage({
         <div className="rounded-xl border border-slate-200 bg-white p-5">
           <div className="text-xs text-slate-500 font-medium mb-3">広告パフォーマンス</div>
           <dl className="space-y-3">
-            <MiniRow label="広告経由GMV" value={selected.adGmv == null ? "—" : formatYen(selected.adGmv)} delta={trendPct(selected.adGmv, previous.adGmv)} />
+            <MiniRow label="広告経由GMV" value={selected.adGmv == null ? "—" : formatYen(selected.adGmv)} delta={trendPct(selected.adGmv, previous.adGmv)} deltaAbs={signedYen(selected.adGmv, previous.adGmv)} />
             <MiniRow label="ROI" value={pct(selRoi)} delta={trendPct(selRoi, prevRoi)} />
-            <MiniRow label="広告費" value={selected.adSpend == null ? "—" : formatYen(selected.adSpend)} delta={trendPct(selected.adSpend, previous.adSpend)} invert />
+            <MiniRow label="広告費" value={selected.adSpend == null ? "—" : formatYen(selected.adSpend)} delta={trendPct(selected.adSpend, previous.adSpend)} deltaAbs={signedYen(selected.adSpend, previous.adSpend)} invert />
             <MiniRow label="日予算消化率" value={pct(selRate)} delta={trendPct(selRate, budgetConsumptionRate(previous, unit.dailyAdBudget))} invert />
           </dl>
         </div>
       </div>
 
-      {/* サマリー（示唆） */}
+      {/* サマリー（自動示唆＋手動メモ） */}
       <section className="mb-6">
         <h2 className="text-sm font-semibold text-slate-700 mb-2">
           {summaryTitle}
           <span className="ml-2 text-xs font-normal text-slate-400">（{prevWord}比較・数値から自動生成）</span>
         </h2>
-        <InsightList items={insights} />
+        <SummaryEditor insights={insights} scope="unit" refId={id} periodKey={pKey} initialNote={note} prevWord={prevWord} />
       </section>
 
       {/* KPIタイル */}
@@ -301,13 +306,25 @@ export default async function DailyReportDetailPage({
   );
 }
 
-function MiniRow({ label, value, delta, invert }: { label: string; value: string; delta: number | null; invert?: boolean }) {
+function MiniRow({
+  label,
+  value,
+  delta,
+  invert,
+  deltaAbs,
+}: {
+  label: string;
+  value: string;
+  delta: number | null;
+  invert?: boolean;
+  deltaAbs?: string | null;
+}) {
   return (
     <div className="flex items-center justify-between gap-2">
       <dt className="text-xs text-slate-500">{label}</dt>
       <dd className="flex items-center gap-2">
         <span className="text-sm font-bold text-slate-800 tabular-nums">{value}</span>
-        <TrendBadge deltaPct={delta} invert={invert} />
+        <TrendBadge deltaPct={delta} invert={invert} deltaAbs={deltaAbs} />
       </dd>
     </div>
   );

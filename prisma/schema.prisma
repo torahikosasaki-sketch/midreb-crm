@@ -221,6 +221,23 @@ model Target {
   productionTarget Int? // 制作本数目標
 }
 
+/// レポートの手動サマリー（運用担当者の加筆メモ）。自動生成の示唆とは別に保持する。
+/// scope: "all"(全体) / "unit"(販売単位) / "account"(顧客) を refId と組で識別。
+/// periodKey は period.ts の periodKey(ResolvedPeriod) の値（例 "week:2026-07-03:2026-07-10"）。
+model ReportNote {
+  id        String   @id @default(cuid())
+  scope     String // all / unit / account
+  refId     String   @default("ALL") // salesUnitId / accountId（全体は "ALL"）
+  periodKey String // 期間キー
+  body      String // 手動メモ本文
+  updatedBy String? // 更新者（任意）
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@unique([scope, refId, periodKey])
+  @@index([scope, refId])
+}
+
 /// 従業員（担当者マスタ）。owner系の選択肢
 model Employee {
   id        String   @id @default(cuid())
