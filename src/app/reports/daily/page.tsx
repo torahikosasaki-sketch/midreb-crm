@@ -7,7 +7,6 @@ import {
   budgetConsumptionRate,
   effectiveDailyBudget,
   sumReports,
-  withWeeklyCreative,
   contentGmvTotal,
   resolvePeriod,
   previousPeriod,
@@ -39,14 +38,13 @@ async function loadTotals(start: Date, end: Date) {
     where: { status: "稼働中" },
     include: {
       dailyReports: { where: { reportDate: { gte: start, lt: end } } },
-      weeks: { select: { weekStart: true, videoPosts: true, liveCount: true, videoGmv: true, liveGmv: true } },
       account: { select: { name: true } },
     },
     orderBy: { createdAt: "asc" },
   });
 
   const rows = units.map((u) => {
-    const r = withWeeklyCreative(sumReports(u.dailyReports), u.weeks, start, end);
+    const r = sumReports(u.dailyReports);
     return { u, r, roi: roi(r), cpa: cpa(r), rate: budgetConsumptionRate(r, u.dailyAdBudget), contentGmv: contentGmvTotal(r) ?? 0 };
   });
 

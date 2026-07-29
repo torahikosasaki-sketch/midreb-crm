@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { formatYen } from "@/lib/enums";
 import {
   sumReports,
-  withWeeklyCreative,
   contentGmvTotal,
   resolvePeriod,
   previousPeriod,
@@ -22,14 +21,13 @@ export const dynamic = "force-dynamic";
 function accountContentGmv(
   units: {
     dailyReports: (DailyReportLike & { reportDate: Date })[];
-    weeks: { weekStart: Date; videoPosts: number | null; liveCount: number | null; videoGmv: number | null; liveGmv: number | null }[];
   }[],
   start: Date,
   end: Date
 ): number {
   return units.reduce((sum, u) => {
     const inPeriod = u.dailyReports.filter((r) => r.reportDate >= start && r.reportDate < end);
-    const agg = withWeeklyCreative(sumReports(inPeriod), u.weeks, start, end);
+    const agg = sumReports(inPeriod);
     return sum + (contentGmvTotal(agg) ?? 0);
   }, 0);
 }
@@ -50,8 +48,7 @@ export default async function BrandsReportPage({
     include: {
       salesUnits: {
         include: {
-          dailyReports: { select: { reportDate: true, videoPosts: true, liveCount: true, adSpend: true, adGmv: true, orderCount: true, dailyBudget: true, shippingQty: true, shippingAmount: true } },
-          weeks: { select: { weekStart: true, videoPosts: true, liveCount: true, videoGmv: true, liveGmv: true } },
+          dailyReports: { select: { reportDate: true, videoPosts: true, videoSales: true, videoGmv: true, liveCount: true, liveSales: true, liveGmv: true, adSpend: true, adGmv: true, orderCount: true, dailyBudget: true, shippingQty: true, shippingAmount: true } },
         },
       },
     },

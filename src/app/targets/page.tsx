@@ -40,21 +40,21 @@ function Bar({
 }
 
 export default async function TargetsPage() {
-  const [targets, contractedDeals, weekly] = await Promise.all([
+  const [targets, contractedDeals, daily] = await Promise.all([
     prisma.target.findMany({ orderBy: { label: "asc" } }),
     prisma.deal.findMany({
       where: { customerized: true },
       select: { accountId: true, lineItems: true },
     }),
-    prisma.weeklyProgress.findMany({ select: { videoPosts: true, videoPosters: true } }),
+    prisma.dailyReport.findMany({ select: { videoPosts: true, videoPosters: true } }),
   ]);
 
   // 実績（現時点）: 月間GMV=現MRR、セラー数=契約中の顧客数
   const gmvActual = contractedDeals.reduce((s, d) => s + linesMrr(d.lineItems), 0);
   const sellerActual = new Set(contractedDeals.map((d) => d.accountId).filter(Boolean)).size;
-  // 案件進捗（週次）から: クリエイター数≈動画投稿人数の延べ、制作本数≈動画投稿数の延べ
-  const creatorActual = weekly.reduce((s, w) => s + (w.videoPosters ?? 0), 0);
-  const productionActual = weekly.reduce((s, w) => s + (w.videoPosts ?? 0), 0);
+  // 案件進捗（日次実績）から: クリエイター数≈動画投稿人数の延べ、制作本数≈動画投稿数の延べ
+  const creatorActual = daily.reduce((s, w) => s + (w.videoPosters ?? 0), 0);
+  const productionActual = daily.reduce((s, w) => s + (w.videoPosts ?? 0), 0);
 
   return (
     <div className="p-6 max-w-4xl">

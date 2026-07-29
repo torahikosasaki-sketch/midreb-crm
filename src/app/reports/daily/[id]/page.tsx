@@ -7,7 +7,6 @@ import {
   cpa,
   budgetConsumptionRate,
   sumReports,
-  withWeeklyCreative,
   contentGmvTotal,
   resolvePeriod,
   previousPeriod,
@@ -63,7 +62,6 @@ export default async function DailyReportDetailPage({
     where: { id },
     include: {
       dailyReports: { orderBy: { reportDate: "asc" } },
-      weeks: { select: { weekStart: true, videoPosts: true, liveCount: true, videoGmv: true, liveGmv: true } },
       account: { select: { name: true } },
     },
   });
@@ -72,7 +70,7 @@ export default async function DailyReportDetailPage({
   const reports = unit.dailyReports;
   const { start, end } = rp;
   const selectedRows = reports.filter((r) => r.reportDate >= start && r.reportDate < end);
-  const selected = withWeeklyCreative(sumReports(selectedRows), unit.weeks, start, end);
+  const selected = sumReports(selectedRows);
 
   const selRoi = roi(selected);
   const selCpa = cpa(selected);
@@ -81,7 +79,7 @@ export default async function DailyReportDetailPage({
 
   // 前期間（比較用）
   const prevRows = reports.filter((r) => r.reportDate >= prev.start && r.reportDate < prev.end);
-  const previous = withWeeklyCreative(sumReports(prevRows), unit.weeks, prev.start, prev.end);
+  const previous = sumReports(prevRows);
   const prevRoi = roi(previous);
   const prevCpa = cpa(previous);
   const prevContentGmv = contentGmvTotal(previous);
@@ -109,7 +107,7 @@ export default async function DailyReportDetailPage({
   const trendSuffix = `直近${bc.count}${bucketUnitLabel}`;
 
   // 直近N期間分の推移
-  const buckets = recentBuckets(reports, rp, unit.weeks);
+  const buckets = recentBuckets(reports, rp);
   const adChartData: DailyAdPoint[] = buckets.map((b) => ({
     day: b.label,
     広告費: b.data.adSpend ?? 0,
@@ -217,28 +215,21 @@ export default async function DailyReportDetailPage({
         <StatTile label="配送 売上金額" value={selected.shippingAmount == null ? "—" : formatYen(selected.shippingAmount)} deltaPct={trendPct(selected.shippingAmount, previous.shippingAmount)} />
       </div>
 
-      {selectedRows.length === 0 && (selected.videoPosts != null || selected.liveCount != null) && (
-        <p className="print:hidden text-xs text-slate-400 mb-6">
-          ※ 動画投稿数・ライブ実施回数・チャネル別GMVは案件進捗管理の週次実績から自動反映。広告・配送の実績は
-          <Link href={`/progress/${id}`} className="text-emerald-600 hover:underline">案件進捗管理</Link>
-          から入力してください。
-        </p>
-      )}
-      {selectedRows.length === 0 && selected.videoPosts == null && selected.liveCount == null && (
+      {selectedRows.length === 0 && (
         <p className="print:hidden text-sm text-slate-400 mb-6">
           {rp.label} の記録はまだありません。
           <Link href={`/progress/${id}`} className="text-emerald-600 hover:underline">案件進捗管理</Link>
-          から入力してください。
+          から日次で入力してください。
         </p>
       )}
 
       {/* 推移グラフ */}
       <div className="print:hidden grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
         <ChartCard title={`チャネル別売上（動画/ライブ）推移 ・ ${trendSuffix}`}>
-          {hasChannelGmv ? <ChannelGmvChart data={channelGmvChartData} /> : <Empty note="動画/ライブGMVは案件進捗管理の週次実績から反映されます" />}
+          {hasChannelGmv ? <ChannelGmvChart data={channelGmvChartData} /> : <Empty note="動画/ライブGMVは案件進捗管理から日次で入力してください" />}
         </ChartCard>
         <ChartCard title={`クリエイティブ活動 推移 ・ ${trendSuffix}`}>
-          {reports.length === 0 && unit.weeks.length === 0 ? <Empty /> : <CreativeChart data={creativeChartData} />}
+          {reports.length === 0 ? <Empty /> : <CreativeChart data={creativeChartData} />}
         </ChartCard>
         <ChartCard title={`広告費 と 広告経由GMV ・ ${trendSuffix}`}>
           {hasAdData ? <AdCompareChart data={adChartData} /> : <Empty note="広告実績は案件進捗管理から入力してください" />}

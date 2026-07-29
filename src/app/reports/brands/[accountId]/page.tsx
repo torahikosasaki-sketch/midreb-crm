@@ -7,7 +7,6 @@ import {
   cpa,
   effectiveDailyBudget,
   sumReports,
-  withWeeklyCreative,
   contentGmvTotal,
   resolvePeriod,
   previousPeriod,
@@ -53,14 +52,13 @@ type UnitWithData = {
   dailyAdBudget: number | null;
   account: { name: string } | null;
   dailyReports: (DailyReportLike & { reportDate: Date })[];
-  weeks: { weekStart: Date; videoPosts: number | null; liveCount: number | null; videoGmv: number | null; liveGmv: number | null }[];
 };
 
 /** 顧客配下の全販売単位を期間集計し、合算値と有効予算合計を返す */
 function aggregateUnits(units: UnitWithData[], start: Date, end: Date): { agg: DailyReportLike; budget: number } {
   const perUnit = units.map((u) => {
     const inPeriod = u.dailyReports.filter((r) => r.reportDate >= start && r.reportDate < end);
-    return { agg: withWeeklyCreative(sumReports(inPeriod), u.weeks, start, end), unit: u };
+    return { agg: sumReports(inPeriod), unit: u };
   });
   const pick = (k: keyof DailyReportLike) =>
     perUnit.reduce((s, x) => s + ((x.agg[k] as number | null | undefined) ?? 0), 0);
@@ -100,7 +98,6 @@ export default async function BrandReportDetailPage({
       salesUnits: {
         include: {
           dailyReports: { orderBy: { reportDate: "asc" } },
-          weeks: { select: { weekStart: true, videoPosts: true, liveCount: true, videoGmv: true, liveGmv: true } },
           account: { select: { name: true } },
         },
         orderBy: { createdAt: "asc" },
@@ -139,19 +136,18 @@ export default async function BrandReportDetailPage({
   const perUnitRanked = units
     .map((u) => {
       const inPeriod = u.dailyReports.filter((r) => r.reportDate >= rp.start && r.reportDate < rp.end);
-      const a = withWeeklyCreative(sumReports(inPeriod), u.weeks, rp.start, rp.end);
+      const a = sumReports(inPeriod);
       return { u, contentGmv: contentGmvTotal(a) ?? 0, video: a.videoGmv ?? 0 };
     })
     .sort((x, y) => y.contentGmv - x.contentGmv);
   const maxContentGmv = Math.max(1, ...perUnitRanked.map((x) => x.contentGmv));
 
-  // 推移グラフ（顧客配下の全DailyReport＋全週次実績を集約）
+  // 推移グラフ（顧客配下の全DailyReportを集約）
   const allReports = units.flatMap((u) => u.dailyReports);
-  const allWeeks = units.flatMap((u) => u.weeks);
   const bc = bucketConfig(rp);
   const bucketUnitLabel = bc.unit === "day" ? "日" : bc.unit === "week" ? "週" : "ヶ月";
   const trendSuffix = `直近${bc.count}${bucketUnitLabel}`;
-  const buckets = recentBuckets(allReports, rp, allWeeks);
+  const buckets = recentBuckets(allReports, rp);
   const adChartData: DailyAdPoint[] = buckets.map((b) => ({ day: b.label, 広告費: b.data.adSpend ?? 0, 売上GMV: b.data.adGmv ?? 0 }));
   const roiChartData: RoiPoint[] = buckets.map((b) => ({ day: b.label, ROI: roi(b.data) }));
   const creativeChartData: CreativePoint[] = buckets.map((b) => ({ day: b.label, 動画投稿数: b.data.videoPosts ?? 0, ライブ実施回数: b.data.liveCount ?? 0 }));
@@ -261,10 +257,10 @@ export default async function BrandReportDetailPage({
       {/* 推移グラフ */}
       <div className="print:hidden grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
         <ChartCard title={`チャネル別売上（動画/ライブ）推移 ・ ${trendSuffix}`}>
-          {hasChannelGmv ? <ChannelGmvChart data={channelGmvChartData} /> : <Empty note="動画/ライブGMVは案件進捗管理の週次実績から反映されます" />}
+          {hasChannelGmv ? <ChannelGmvChart data={channelGmvChartData} /> : <Empty note="動画/ライブGMVは案件進捗管理から日次で入力してください" />}
         </ChartCard>
         <ChartCard title={`クリエイティブ活動 推移 ・ ${trendSuffix}`}>
-          {allReports.length === 0 && allWeeks.length === 0 ? <Empty /> : <CreativeChart data={creativeChartData} />}
+          {allReports.length === 0 ? <Empty /> : <CreativeChart data={creativeChartData} />}
         </ChartCard>
         <ChartCard title={`広告費 と 広告経由GMV ・ ${trendSuffix}`}>
           {hasAdData ? <AdCompareChart data={adChartData} /> : <Empty note="広告実績は案件進捗管理から入力してください" />}

@@ -17,13 +17,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     where: { id },
     include: {
       dailyReports: { orderBy: { reportDate: "asc" } },
-      weeks: { select: { weekStart: true, videoPosts: true, liveCount: true, videoGmv: true, liveGmv: true } },
       account: { select: { name: true } },
     },
   });
   if (!unit) return new Response("Not Found", { status: 404 });
 
-  const buckets = recentBuckets(unit.dailyReports, rp, unit.weeks);
+  const buckets = recentBuckets(unit.dailyReports, rp);
 
   const rows = buckets.map((b) => [
     b.label,

@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { formatYen } from "@/lib/enums";
 import { updateSalesUnit, deleteSalesUnit } from "@/lib/actions/salesUnits";
-import { createWeek, deleteWeek } from "@/lib/actions/progress";
 import { upsertDailyReport, deleteDailyReport } from "@/lib/actions/dailyReports";
 import { DeleteButton } from "@/components/DeleteButton";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -12,12 +11,11 @@ import { AccountProductPicker } from "@/components/AccountProductPicker";
 import {
   SALES_UNIT_STATUSES,
   weekSales,
-  weekGmv,
   weekGap,
   effectiveTarget,
   weekAchievement,
   weekLabel,
-  ymd,
+  rollupWeeks,
 } from "@/lib/progress";
 import { roi, cpa, budgetConsumptionRate, ymdUtc } from "@/lib/reports";
 
@@ -35,7 +33,6 @@ export default async function SalesUnitDetail({
     prisma.salesUnit.findUnique({
       where: { id },
       include: {
-        weeks: { orderBy: { weekStart: "asc" } },
         dailyReports: { orderBy: { reportDate: "asc" } },
         account: { select: { id: true, name: true } },
       },
@@ -50,26 +47,28 @@ export default async function SalesUnitDetail({
   const dailyReports = unit.dailyReports;
   const todayStr = new Date().toISOString().slice(0, 10);
 
-  const weeks = unit.weeks;
+  // 日次を金曜起点の週へロールアップ（週次断面はここから算出）
+  const weeks = rollupWeeks(dailyReports);
   const latest = weeks[weeks.length - 1] ?? null;
   const chart: ProgressPoint[] = weeks.map((w) => ({
     week: weekLabel(w.weekStart),
-    動画販売: w.videoSales ?? 0,
-    ライブ販売: w.liveSales ?? 0,
-    目標: effectiveTarget(w, unit.weeklyTarget),
+    動画販売: w.videoSales,
+    ライブ販売: w.liveSales,
+    目標: effectiveTarget(w, unit.weeklyTarget) ?? 0,
   }));
 
-  const cumSales = weeks.reduce((s, w) => s + weekSales(w), 0);
-  const cumGmv = weeks.reduce((s, w) => s + weekGmv(w), 0);
+  const cumSales = dailyReports.reduce((s, r) => s + (r.videoSales ?? 0) + (r.liveSales ?? 0), 0);
+  const cumGmv = dailyReports.reduce((s, r) => s + (r.videoGmv ?? 0) + (r.liveGmv ?? 0), 0);
   const latestAch = latest ? weekAchievement(latest, unit.weeklyTarget) : null;
   const latestGap = latest ? weekGap(latest, unit.weeklyTarget) : null;
 
-  const activities = weeks
-    .filter((w) => w.activityNote)
-    .sort((a, b) => b.weekStart.getTime() - a.weekStart.getTime());
+  // 活動記録（日次メモ）
+  const activities = dailyReports
+    .filter((r) => r.memo)
+    .sort((a, b) => b.reportDate.getTime() - a.reportDate.getTime());
 
   return (
-    <div className="p-6 max-w-5xl">
+    <div className="p-6 max-w-6xl">
       <div className="mb-4 flex items-start justify-between">
         <div>
           <Link href="/progress" className="text-sm text-emerald-600 hover:underline">
@@ -93,7 +92,7 @@ export default async function SalesUnitDetail({
         <DeleteButton action={deleteSalesUnit.bind(null, id)} label="販売単位を削除" />
       </div>
 
-      {/* KPI */}
+      {/* KPI（週次断面は日次の集計） */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
         <Kpi label="直近週 販売" value={latest ? `${weekSales(latest)}` : "—"} accent />
         <Kpi label="直近週 達成率" value={latestAch == null ? "—" : `${latestAch}%`} />
@@ -102,9 +101,9 @@ export default async function SalesUnitDetail({
         <Kpi label="累計GMV" value={formatYen(cumGmv)} />
       </div>
 
-      {/* トレンド */}
+      {/* トレンド（週次断面） */}
       <section className="mb-8">
-        <h2 className="text-sm font-semibold text-slate-700 mb-2">週次推移（販売数 vs 目標）</h2>
+        <h2 className="text-sm font-semibold text-slate-700 mb-2">週次推移（販売数 vs 目標）<span className="ml-2 text-xs font-normal text-slate-400">日次実績を金曜起点の週で集計</span></h2>
         <div className="rounded-lg border border-slate-200 bg-white p-4">
           {chart.length === 0 ? (
             <p className="text-sm text-slate-400 py-10 text-center">記録がありません</p>
@@ -114,9 +113,9 @@ export default async function SalesUnitDetail({
         </div>
       </section>
 
-      {/* 週次テーブル */}
+      {/* 週次断面テーブル（日次からの自動集計・読み取り専用） */}
       <section className="mb-8">
-        <h2 className="text-sm font-semibold text-slate-700 mb-2">週次実績</h2>
+        <h2 className="text-sm font-semibold text-slate-700 mb-2">週次断面<span className="ml-2 text-xs font-normal text-slate-400">日次の合計を週（金〜木）でまとめた集計</span></h2>
         <div className="overflow-auto rounded-lg border border-slate-200">
           <table className="w-full text-sm bg-white">
             <thead>
@@ -133,72 +132,44 @@ export default async function SalesUnitDetail({
                 <th className="py-2 px-3 font-medium text-right bg-violet-50/60">ライブGMV</th>
                 <th className="py-2 px-3 font-medium text-right">総販売</th>
                 <th className="py-2 px-3 font-medium text-right">差分</th>
-                <th className="py-2 px-3 font-medium">活動記録</th>
-                <th className="py-2"></th>
               </tr>
             </thead>
             <tbody>
               {[...weeks].reverse().map((w) => {
                 const gap = weekGap(w, unit.weeklyTarget);
                 return (
-                  <tr key={w.id} className="border-b border-slate-100">
+                  <tr key={w.weekStart.getTime()} className="border-b border-slate-100">
                     <td className="py-2 px-3 font-medium">{weekLabel(w.weekStart)}</td>
                     <td className="py-2 px-3 text-right tabular-nums">{nz(effectiveTarget(w, unit.weeklyTarget))}</td>
                     <td className="py-2 px-3 text-right tabular-nums bg-emerald-50/30">{nz(w.videoPosts)}</td>
                     <td className="py-2 px-3 text-right tabular-nums bg-emerald-50/30">{nz(w.videoPosters)}</td>
                     <td className="py-2 px-3 text-right tabular-nums bg-emerald-50/30">{nz(w.videoSales)}</td>
-                    <td className="py-2 px-3 text-right tabular-nums bg-emerald-50/30">{w.videoGmv == null ? "—" : formatYen(w.videoGmv)}</td>
+                    <td className="py-2 px-3 text-right tabular-nums bg-emerald-50/30">{w.videoGmv === 0 ? "—" : formatYen(w.videoGmv)}</td>
                     <td className="py-2 px-3 text-right tabular-nums bg-violet-50/30">{nz(w.liveCount)}</td>
                     <td className="py-2 px-3 text-right tabular-nums bg-violet-50/30">{nz(w.livePresenters)}</td>
                     <td className="py-2 px-3 text-right tabular-nums bg-violet-50/30">{nz(w.liveSales)}</td>
-                    <td className="py-2 px-3 text-right tabular-nums bg-violet-50/30">{w.liveGmv == null ? "—" : formatYen(w.liveGmv)}</td>
+                    <td className="py-2 px-3 text-right tabular-nums bg-violet-50/30">{w.liveGmv === 0 ? "—" : formatYen(w.liveGmv)}</td>
                     <td className="py-2 px-3 text-right tabular-nums font-semibold">{weekSales(w)}</td>
                     <td className={`py-2 px-3 text-right tabular-nums font-medium ${(gap ?? 0) < 0 ? "text-rose-600" : "text-emerald-600"}`}>
                       {gap == null ? "—" : gap >= 0 ? `+${gap}` : gap}
-                    </td>
-                    <td className="py-2 px-3 text-slate-600 text-xs max-w-48">{w.activityNote ?? "—"}</td>
-                    <td className="py-2 px-2 text-right">
-                      <form action={deleteWeek.bind(null, w.id, id)}>
-                        <button type="submit" className="text-xs text-slate-400 hover:text-rose-600">削除</button>
-                      </form>
                     </td>
                   </tr>
                 );
               })}
               {weeks.length === 0 && (
                 <tr>
-                  <td colSpan={14} className="py-6 text-center text-slate-400">記録がありません</td>
+                  <td colSpan={12} className="py-6 text-center text-slate-400">記録がありません</td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-
-        {/* 記録フォーム（商品固定・数値だけ） */}
-        <form action={createWeek.bind(null, id)} className="flex flex-wrap items-end gap-2 mt-3 rounded-lg border border-slate-200 bg-white p-3">
-          <span className="text-sm font-medium text-slate-600 mr-1 w-full md:w-auto">今週の実績を記録:</span>
-          <Inp name="weekStart" label="週内の日付 *（金曜週に自動調整）" type="date" required w="w-44" />
-          <Inp name="targetCount" label={`目標(既定${unit.weeklyTarget ?? "—"})`} type="number" w="w-24" />
-          <Inp name="videoPosts" label="動画投稿" type="number" />
-          <Inp name="videoPosters" label="動画人数" type="number" />
-          <Inp name="videoSales" label="動画販売" type="number" />
-          <Inp name="videoGmv" label="動画GMV" type="number" w="w-24" />
-          <Inp name="liveCount" label="ライブ回数" type="number" />
-          <Inp name="livePresenters" label="ライブ人数" type="number" />
-          <Inp name="liveSales" label="ライブ販売" type="number" />
-          <Inp name="liveGmv" label="ライブGMV" type="number" w="w-24" />
-          <Inp name="activityNote" label="活動記録" w="w-48" />
-          <SubmitButton className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700" pendingLabel="記録中…">
-            記録
-          </SubmitButton>
-        </form>
-        <p className="text-[11px] text-slate-400 mt-1">※ 週は金曜開始（金〜木）で記録されます。同じ週に記録すると上書き。差分は自動算出（総販売 − 目標）。</p>
       </section>
 
-      {/* 日次実績（広告・配送・クリエイティブ）: レポート機能「日次進捗報告」の元データ */}
+      {/* 日次実績（唯一の入力窓口）: レポート機能「日次進捗報告」の元データ */}
       <section className="mb-8">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-sm font-semibold text-slate-700">日次実績（広告・配送）</h2>
+          <h2 className="text-sm font-semibold text-slate-700">日次実績<span className="ml-2 text-xs font-normal text-slate-400">ここに日々入力すると、上の週次断面とレポートに自動反映</span></h2>
           <Link href={`/reports/daily/${id}`} className="text-xs text-emerald-600 hover:underline">
             日次進捗報告レポートを見る →
           </Link>
@@ -208,10 +179,16 @@ export default async function SalesUnitDetail({
             <thead>
               <tr className="text-left text-slate-500 bg-slate-50 border-b border-slate-200">
                 <th className="py-2 px-3 font-medium">対象日</th>
-                <th className="py-2 px-3 font-medium text-right">動画投稿</th>
-                <th className="py-2 px-3 font-medium text-right">ライブ</th>
+                <th className="py-2 px-3 font-medium text-right bg-emerald-50/60">動画投稿</th>
+                <th className="py-2 px-3 font-medium text-right bg-emerald-50/60">動画人数</th>
+                <th className="py-2 px-3 font-medium text-right bg-emerald-50/60">動画販売</th>
+                <th className="py-2 px-3 font-medium text-right bg-emerald-50/60">動画GMV</th>
+                <th className="py-2 px-3 font-medium text-right bg-violet-50/60">ライブ回数</th>
+                <th className="py-2 px-3 font-medium text-right bg-violet-50/60">ライブ人数</th>
+                <th className="py-2 px-3 font-medium text-right bg-violet-50/60">ライブ販売</th>
+                <th className="py-2 px-3 font-medium text-right bg-violet-50/60">ライブGMV</th>
                 <th className="py-2 px-3 font-medium text-right">広告費</th>
-                <th className="py-2 px-3 font-medium text-right">GMV</th>
+                <th className="py-2 px-3 font-medium text-right">広告GMV</th>
                 <th className="py-2 px-3 font-medium text-right">ROI</th>
                 <th className="py-2 px-3 font-medium text-right">注文数</th>
                 <th className="py-2 px-3 font-medium text-right">CPA</th>
@@ -225,9 +202,15 @@ export default async function SalesUnitDetail({
             <tbody>
               {[...dailyReports].reverse().map((r) => (
                 <tr key={r.id} className="border-b border-slate-100">
-                  <td className="py-2 px-3 font-medium">{ymdUtc(r.reportDate)}</td>
-                  <td className="py-2 px-3 text-right tabular-nums">{nz(r.videoPosts)}</td>
-                  <td className="py-2 px-3 text-right tabular-nums">{nz(r.liveCount)}</td>
+                  <td className="py-2 px-3 font-medium whitespace-nowrap">{ymdUtc(r.reportDate)}</td>
+                  <td className="py-2 px-3 text-right tabular-nums bg-emerald-50/30">{nz(r.videoPosts)}</td>
+                  <td className="py-2 px-3 text-right tabular-nums bg-emerald-50/30">{nz(r.videoPosters)}</td>
+                  <td className="py-2 px-3 text-right tabular-nums bg-emerald-50/30">{nz(r.videoSales)}</td>
+                  <td className="py-2 px-3 text-right tabular-nums bg-emerald-50/30">{r.videoGmv == null ? "—" : formatYen(r.videoGmv)}</td>
+                  <td className="py-2 px-3 text-right tabular-nums bg-violet-50/30">{nz(r.liveCount)}</td>
+                  <td className="py-2 px-3 text-right tabular-nums bg-violet-50/30">{nz(r.livePresenters)}</td>
+                  <td className="py-2 px-3 text-right tabular-nums bg-violet-50/30">{nz(r.liveSales)}</td>
+                  <td className="py-2 px-3 text-right tabular-nums bg-violet-50/30">{r.liveGmv == null ? "—" : formatYen(r.liveGmv)}</td>
                   <td className="py-2 px-3 text-right tabular-nums">{r.adSpend == null ? "—" : formatYen(r.adSpend)}</td>
                   <td className="py-2 px-3 text-right tabular-nums">{r.adGmv == null ? "—" : formatYen(r.adGmv)}</td>
                   <td className="py-2 px-3 text-right tabular-nums">{roi(r) == null ? "—" : `${roi(r)}%`}</td>
@@ -248,7 +231,7 @@ export default async function SalesUnitDetail({
               ))}
               {dailyReports.length === 0 && (
                 <tr>
-                  <td colSpan={13} className="py-6 text-center text-slate-400">記録がありません</td>
+                  <td colSpan={19} className="py-6 text-center text-slate-400">記録がありません</td>
                 </tr>
               )}
             </tbody>
@@ -258,41 +241,55 @@ export default async function SalesUnitDetail({
         {/* 記録フォーム */}
         <form
           action={upsertDailyReport.bind(null, id)}
-          className="flex flex-wrap items-end gap-2 mt-3 rounded-lg border border-slate-200 bg-white p-3"
+          className="mt-3 rounded-lg border border-slate-200 bg-white p-3"
         >
-          <span className="text-sm font-medium text-slate-600 mr-1 w-full md:w-auto">日次実績を記録:</span>
-          <Inp name="reportDate" label="対象日 *" type="date" required defaultValue={todayStr} w="w-36" />
-          <Inp name="videoPosts" label="動画投稿数" type="number" />
-          <Inp name="liveCount" label="ライブ実施回数" type="number" />
-          <Inp name="adSpend" label="広告費" type="number" w="w-24" />
-          <Inp name="adGmv" label="売上(GMV)" type="number" w="w-24" />
-          <Inp name="orderCount" label="注文数" type="number" />
-          <Inp name="dailyBudget" label={`日予算(既定${unit.dailyAdBudget ?? "—"})`} type="number" w="w-28" />
-          <Inp name="shippingQty" label="配送 売上個数" type="number" w="w-24" />
-          <Inp name="shippingAmount" label="配送 売上金額" type="number" w="w-24" />
-          <Inp name="memo" label="メモ" w="w-48" />
-          <SubmitButton
-            className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
-            pendingLabel="記録中…"
-          >
-            記録
-          </SubmitButton>
+          <div className="text-sm font-medium text-slate-600 mb-2">日次実績を記録:</div>
+          <div className="flex flex-wrap items-end gap-2">
+            <Inp name="reportDate" label="対象日 *" type="date" required defaultValue={todayStr} w="w-36" />
+            <FieldGroup label="動画（投稿系）">
+              <Inp name="videoPosts" label="投稿数" type="number" />
+              <Inp name="videoPosters" label="人数" type="number" />
+              <Inp name="videoSales" label="販売数" type="number" />
+              <Inp name="videoGmv" label="GMV" type="number" w="w-24" />
+            </FieldGroup>
+            <FieldGroup label="ライブ配信">
+              <Inp name="liveCount" label="回数" type="number" />
+              <Inp name="livePresenters" label="人数" type="number" />
+              <Inp name="liveSales" label="販売数" type="number" />
+              <Inp name="liveGmv" label="GMV" type="number" w="w-24" />
+            </FieldGroup>
+            <FieldGroup label="広告・配送">
+              <Inp name="adSpend" label="広告費" type="number" w="w-24" />
+              <Inp name="adGmv" label="広告GMV" type="number" w="w-24" />
+              <Inp name="orderCount" label="注文数" type="number" />
+              <Inp name="dailyBudget" label={`日予算(既定${unit.dailyAdBudget ?? "—"})`} type="number" w="w-28" />
+              <Inp name="shippingQty" label="配送個数" type="number" w="w-24" />
+              <Inp name="shippingAmount" label="配送金額" type="number" w="w-24" />
+            </FieldGroup>
+            <Inp name="memo" label="メモ / 活動記録" w="w-48" />
+            <SubmitButton
+              className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
+              pendingLabel="記録中…"
+            >
+              記録
+            </SubmitButton>
+          </div>
         </form>
         <p className="text-[11px] text-slate-400 mt-1">
-          ※ 同じ対象日で記録すると上書きされます。ROI・CPA・日予算消化率は自動算出（保存はされません）。この実績は「レポート」の日次進捗報告に反映されます。
+          ※ 同じ対象日で記録すると上書きされます。ROI・CPA・日予算消化率は自動算出（保存はされません）。週次/月次の断面とレポートは、この日次実績を自動集計して表示されます。
         </p>
       </section>
 
-      {/* 活動タイムライン */}
+      {/* 活動タイムライン（日次メモ） */}
       {activities.length > 0 && (
         <section className="mb-8">
           <h2 className="text-sm font-semibold text-slate-700 mb-2">活動記録</h2>
           <ol className="relative border-l border-slate-200 ml-2">
-            {activities.map((w) => (
-              <li key={w.id} className="mb-3 ml-4">
+            {activities.map((r) => (
+              <li key={r.id} className="mb-3 ml-4">
                 <span className="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white" />
-                <div className="text-xs text-slate-400">{weekLabel(w.weekStart)}</div>
-                <p className="text-sm text-slate-700">{w.activityNote}</p>
+                <div className="text-xs text-slate-400">{ymdUtc(r.reportDate)}</div>
+                <p className="text-sm text-slate-700">{r.memo}</p>
               </li>
             ))}
           </ol>
@@ -352,6 +349,18 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="text-slate-600 font-medium text-xs">{label}</span>
       {children}
     </label>
+  );
+}
+
+/** 日次入力フォームの視覚的なグループ（動画/ライブ/広告） */
+function FieldGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">{label}</span>
+      <div className="flex flex-wrap items-end gap-2 rounded-md border border-slate-100 bg-slate-50/50 p-2">
+        {children}
+      </div>
+    </div>
   );
 }
 

@@ -28,9 +28,13 @@ export {
 
 export type DailyReportLike = {
   videoPosts?: number | null;
+  videoPosters?: number | null; // 動画投稿人数
+  videoSales?: number | null; // 動画経由の販売数
+  videoGmv?: number | null; // 動画投稿経由の売上
   liveCount?: number | null;
-  videoGmv?: number | null; // 動画投稿経由の売上（案件進捗管理の週次実績から反映）
-  liveGmv?: number | null; // ライブ配信経由の売上（案件進捗管理の週次実績から反映）
+  livePresenters?: number | null; // ライブ配信人数
+  liveSales?: number | null; // ライブ経由の販売数
+  liveGmv?: number | null; // ライブ配信経由の売上
   adSpend?: number | null;
   adGmv?: number | null;
   orderCount?: number | null;
@@ -90,8 +94,12 @@ export function sumReports(rows: DailyReportLike[]): DailyReportLike {
   };
   return {
     videoPosts: sum("videoPosts"),
-    liveCount: sum("liveCount"),
+    videoPosters: sum("videoPosters"),
+    videoSales: sum("videoSales"),
     videoGmv: sum("videoGmv"),
+    liveCount: sum("liveCount"),
+    livePresenters: sum("livePresenters"),
+    liveSales: sum("liveSales"),
     liveGmv: sum("liveGmv"),
     adSpend: sum("adSpend"),
     adGmv: sum("adGmv"),
@@ -102,78 +110,14 @@ export function sumReports(rows: DailyReportLike[]): DailyReportLike {
   };
 }
 
-export type WeekProgressLike = {
-  weekStart: Date;
-  videoPosts?: number | null;
-  liveCount?: number | null;
-  videoGmv?: number | null;
-  liveGmv?: number | null;
-};
-
-/**
- * 過去データ取り込み時のタイムゾーンずれ（UTC深夜でなく前日夕方などにずれたもの）を補正。
- * 深夜(00:00 UTC)であればそのまま、そうでなければ次の深夜へ繰り上げる（常に手前にずれるため）。
- */
-function ceilToUtcMidnight(d: Date): Date {
-  const day = 24 * 60 * 60 * 1000;
-  return new Date(Math.ceil(d.getTime() / day) * day);
-}
-
-/** 期間[start, end)に含まれる週次実績(WeeklyProgress)の動画投稿数・ライブ実施回数・動画GMV・ライブGMVを合算 */
-export function weeklyCreativeTotals(
-  weeks: WeekProgressLike[],
-  start: Date,
-  end: Date
-): { videoPosts: number; liveCount: number; videoGmv: number; liveGmv: number; hasData: boolean } {
-  const matched = weeks.filter((w) => {
-    const normalized = ceilToUtcMidnight(w.weekStart);
-    return normalized >= start && normalized < end;
-  });
-  return {
-    videoPosts: matched.reduce((s, w) => s + (w.videoPosts ?? 0), 0),
-    liveCount: matched.reduce((s, w) => s + (w.liveCount ?? 0), 0),
-    videoGmv: matched.reduce((s, w) => s + (w.videoGmv ?? 0), 0),
-    liveGmv: matched.reduce((s, w) => s + (w.liveGmv ?? 0), 0),
-    hasData: matched.length > 0,
-  };
-}
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-/**
- * 案件進捗管理（週次実績 WeeklyProgress）に該当期間のデータがあれば、
- * レポートのクリエイティブ指標（動画投稿数・ライブ実施回数）とチャネル別売上
- * （動画GMV・ライブGMV）を自動的にそちらから反映する。
- * ちょうど1日の期間（日次バケット）は週次実績を1日単位に配分できないため対象外。
- */
-export function withWeeklyCreative<T extends DailyReportLike>(
-  data: T,
-  weeks: WeekProgressLike[],
-  start: Date,
-  end: Date
-): T {
-  // 1日ちょうどの期間は日次入力のまま（週次実績を按分しない）
-  if (end.getTime() - start.getTime() <= DAY_MS) return data;
-  const wt = weeklyCreativeTotals(weeks, start, end);
-  if (!wt.hasData) return data;
-  return {
-    ...data,
-    videoPosts: wt.videoPosts,
-    liveCount: wt.liveCount,
-    videoGmv: wt.videoGmv,
-    liveGmv: wt.liveGmv,
-  };
-}
-
 /**
  * 推移グラフ用のバケット（古い→新しい順）。ResolvedPeriod の bucketConfig に従う。
  * day/week/month は選択期間を最後尾に count 個さかのぼる。custom は範囲内を unit で敷き詰める。
- * 各バケットは該当rowsをsumReportsで合算し、週次実績があれば自動反映する。
+ * 各バケットは該当rowsをsumReportsで合算する。
  */
 export function recentBuckets(
   rows: (DailyReportLike & { reportDate: Date })[],
-  rp: ResolvedPeriod,
-  weeks: WeekProgressLike[] = []
+  rp: ResolvedPeriod
 ): { label: string; anchor: Date; data: DailyReportLike }[] {
   const { unit, count } = bucketConfig(rp);
   const periods: ResolvedPeriod[] = [];
@@ -198,11 +142,10 @@ export function recentBuckets(
 
   return periods.map((b) => {
     const matched = rows.filter((r) => r.reportDate >= b.start && r.reportDate < b.end);
-    const summed = sumReports(matched);
     return {
       label: shortLabel(b),
       anchor: b.start,
-      data: withWeeklyCreative(summed, weeks, b.start, b.end),
+      data: sumReports(matched),
     };
   });
 }

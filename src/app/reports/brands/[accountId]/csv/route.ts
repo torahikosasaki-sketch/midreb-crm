@@ -5,7 +5,6 @@ import {
   cpa,
   budgetConsumptionRate,
   sumReports,
-  withWeeklyCreative,
   resolvePeriod,
   ymdUtc,
 } from "@/lib/reports";
@@ -28,7 +27,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ acco
       salesUnits: {
         include: {
           dailyReports: { where: { reportDate: { gte: start, lt: end } } },
-          weeks: { select: { weekStart: true, videoPosts: true, liveCount: true, videoGmv: true, liveGmv: true } },
           account: { select: { name: true } },
         },
         orderBy: { createdAt: "asc" },
@@ -38,7 +36,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ acco
   if (!account) return new Response("Not Found", { status: 404 });
 
   const rows = account.salesUnits.map((u) => {
-    const r = withWeeklyCreative(sumReports(u.dailyReports), u.weeks, start, end);
+    const r = sumReports(u.dailyReports);
     return [
       u.productSku ?? unitBrandLabel(u),
       r.videoPosts,

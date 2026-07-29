@@ -166,7 +166,7 @@ model SalesUnit {
   @@index([productId])
 }
 
-/// 週次進捗（販売単位 × 週の動画/ライブ実績）。目標差分は算出（目標 − 動画販売 − ライブ販売）
+/// [非推奨] 週次進捗。日次(DailyReport)へ一本化済み。既存データ保持のため残置（読み取りはしない）。将来のクリーンアップで削除予定。
 model WeeklyProgress {
   id             String    @id @default(cuid())
   salesUnit      SalesUnit @relation(fields: [salesUnitId], references: [id], onDelete: Cascade)
@@ -195,7 +195,13 @@ model DailyReport {
   salesUnitId    String
   reportDate     DateTime // 対象日（00:00に正規化して保存）
   videoPosts     Int? // 動画投稿数
+  videoPosters   Int? // 動画投稿人数
+  videoSales     Int? // 動画経由 販売数
+  videoGmv       Int? // 動画経由 売上（GMV）
   liveCount      Int? // ライブ実施回数
+  livePresenters Int? // ライブ配信人数
+  liveSales      Int? // ライブ経由 販売数
+  liveGmv        Int? // ライブ経由 売上（GMV）
   adSpend        Int? // 広告費
   adGmv          Int? // 売上（GMV）※広告経由
   orderCount     Int? // 注文数

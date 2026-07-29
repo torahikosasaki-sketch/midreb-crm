@@ -11,6 +11,7 @@ import {
   weekAchievement,
   effectiveTarget,
   weekLabel,
+  rollupWeeks,
   unitBrandLabel,
 } from "@/lib/progress";
 
@@ -19,7 +20,7 @@ export const dynamic = "force-dynamic";
 export default async function ProgressPage() {
   const [units, accounts] = await Promise.all([
     prisma.salesUnit.findMany({
-      include: { weeks: { orderBy: { weekStart: "asc" } }, account: { select: { name: true } } },
+      include: { dailyReports: { orderBy: { reportDate: "asc" } }, account: { select: { name: true } } },
       orderBy: { createdAt: "asc" },
     }),
     prisma.account.findMany({
@@ -29,7 +30,7 @@ export default async function ProgressPage() {
   ]);
 
   const rows = units.map((u) => {
-    const weeks = u.weeks;
+    const weeks = rollupWeeks(u.dailyReports);
     const latest = weeks[weeks.length - 1] ?? null;
     const sales = latest ? weekSales(latest) : 0;
     const gmv = latest ? weekGmv(latest) : 0;
@@ -117,7 +118,6 @@ export default async function ProgressPage() {
               {latest && (
                 <div className="mt-0.5 text-[10px] text-slate-400 truncate">
                   {weekLabel(latest.weekStart)}
-                  {latest.activityNote ? ` ・ ${latest.activityNote}` : ""}
                 </div>
               )}
             </div>
