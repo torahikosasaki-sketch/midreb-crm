@@ -188,6 +188,7 @@ export type InsightInput = {
   cpaCur: number | null;
   cpaPrev: number | null;
   budgetRate: number | null;
+  hideAdMetrics?: boolean; // 顧客向け出力: 広告費/ROI/CPA/日予算などの社内指標に触れる示唆を抑制
 };
 
 // 優先度: 小さいほど上位（bad/warnを先頭に）
@@ -232,7 +233,7 @@ export function buildInsights(input: InsightInput): InsightItem[] {
     items.push({ tone: "info", text: `売上は${dominant}が牽引（全体の${domPct}%）${shiftNote}です。` });
   }
 
-  const hasAd = (cur.adSpend ?? 0) > 0;
+  const hasAd = (cur.adSpend ?? 0) > 0 && !input.hideAdMetrics;
 
   // 3. ROIの健全性（絶対水準）＋トレンド
   if (hasAd && input.roiCur != null) {
@@ -255,7 +256,7 @@ export function buildInsights(input: InsightInput): InsightItem[] {
   }
 
   // 4. 日予算消化率
-  if (input.budgetRate != null) {
+  if (input.budgetRate != null && !input.hideAdMetrics) {
     if (input.budgetRate >= 100) {
       items.push({ tone: "bad", text: `日予算消化率が ${input.budgetRate}% に達しています。予算超過に注意してください。` });
     } else if (input.budgetRate >= 90) {

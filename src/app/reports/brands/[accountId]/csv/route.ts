@@ -20,6 +20,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ acco
     to: searchParams.get("to") ?? undefined,
   });
   const { start, end } = rp;
+  // 顧客向け出力: 広告費・広告経由GMV・ROI・CPA・日予算消化率の社内指標を列から除外
+  const isClient = searchParams.get("audience") === "client";
 
   const account = await prisma.account.findUnique({
     where: { id: accountId },
@@ -37,43 +39,27 @@ export async function GET(request: Request, { params }: { params: Promise<{ acco
 
   const rows = account.salesUnits.map((u) => {
     const r = sumReports(u.dailyReports);
-    return [
+    const base = [
       u.productSku ?? unitBrandLabel(u),
       r.videoPosts,
       r.liveCount,
       r.videoGmv,
       r.liveGmv,
-      r.adSpend,
-      r.adGmv,
-      roi(r),
-      r.orderCount,
-      cpa(r),
-      budgetConsumptionRate(r, u.dailyAdBudget),
-      r.shippingQty,
-      r.shippingAmount,
     ];
+    const ad = isClient
+      ? []
+      : [r.adSpend, r.adGmv, roi(r), r.orderCount, cpa(r), budgetConsumptionRate(r, u.dailyAdBudget)];
+    const client = isClient ? [r.orderCount] : [];
+    return [...base, ...ad, ...client, r.shippingQty, r.shippingAmount];
   });
 
-  const csv = toCsv(
-    [
-      "販売単位",
-      "動画投稿数",
-      "ライブ実施回数",
-      "動画経由GMV",
-      "ライブ経由GMV",
-      "広告費",
-      "広告経由GMV",
-      "ROI(%)",
-      "注文数",
-      "CPA",
-      "日予算消化率(%)",
-      "配送個数",
-      "配送金額",
-    ],
-    rows
-  );
+  const header = isClient
+    ? ["販売単位", "動画投稿数", "ライブ実施回数", "動画経由GMV", "ライブ経由GMV", "注文数", "配送個数", "配送金額"]
+    : ["販売単位", "動画投稿数", "ライブ実施回数", "動画経由GMV", "ライブ経由GMV", "広告費", "広告経由GMV", "ROI(%)", "注文数", "CPA", "日予算消化率(%)", "配送個数", "配送金額"];
+  const csv = toCsv(header, rows);
 
-  const filename = `${account.name}_${rp.kind}_${ymdUtc(rp.start)}.csv`;
+  const suffix = isClient ? "_顧客向け" : "";
+  const filename = `${account.name}_${rp.kind}_${ymdUtc(rp.start)}${suffix}.csv`;
   return new Response(csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",

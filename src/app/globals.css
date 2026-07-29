@@ -43,4 +43,9 @@ body {
     height: auto !important;
     overflow: visible !important;
   }
+  /* グラフ・カードが改ページで分断されないように */
+  .avoid-break {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
 }

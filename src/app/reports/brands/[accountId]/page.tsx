@@ -82,7 +82,7 @@ export default async function BrandReportDetailPage({
   searchParams,
 }: {
   params: Promise<{ accountId: string }>;
-  searchParams: Promise<{ date?: string; period?: string; from?: string; to?: string }>;
+  searchParams: Promise<{ date?: string; period?: string; from?: string; to?: string; audience?: string }>;
 }) {
   const { accountId } = await params;
   const sp = await searchParams;
@@ -91,6 +91,9 @@ export default async function BrandReportDetailPage({
   const query = periodQuery(rp);
   const prevWord = previousPeriodWord(rp);
   const pKey = periodKey(rp);
+  // 顧客向けモード: 広告費・ROI・CPA・日予算などの社内指標を出力から除外する
+  const isClient = sp.audience === "client";
+  const viewQuery = isClient ? `${query}&audience=client` : query;
 
   const account = await prisma.account.findUnique({
     where: { id: accountId },
@@ -130,6 +133,7 @@ export default async function BrandReportDetailPage({
     cpaCur: curCpa,
     cpaPrev: prevCpa,
     budgetRate: curRate,
+    hideAdMetrics: isClient,
   });
 
   // 販売単位別 コンテンツ売上（ランキング）
@@ -171,13 +175,31 @@ export default async function BrandReportDetailPage({
             <img src={account.logoUrl} alt={account.name} className="h-10 w-10 rounded-lg object-contain border border-slate-200 bg-white" />
           ) : null}
           <div>
-            <h1 className="text-xl font-bold">{account.name}</h1>
+            <h1 className="text-xl font-bold">
+              {account.name}
+              {isClient && <span className="ml-2 align-middle rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">顧客向け</span>}
+            </h1>
             <p className="text-sm text-slate-500">メーカー別レポート ・ {rp.label} ・ 販売単位 {units.length} 件</p>
           </div>
         </div>
-        <div className="print:hidden flex items-center gap-2">
+        <div className="print:hidden flex items-center gap-2 flex-wrap">
+          {/* 出力対象の出し分け（社内向け=広告等の内部指標込み / 顧客向け=非表示） */}
+          <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-0.5">
+            <Link
+              href={`/reports/brands/${accountId}?${query}`}
+              className={`rounded-md px-2.5 py-1 text-sm font-medium transition-colors ${!isClient ? "bg-emerald-600 text-white" : "text-slate-600 hover:bg-slate-200"}`}
+            >
+              社内向け
+            </Link>
+            <Link
+              href={`/reports/brands/${accountId}?${query}&audience=client`}
+              className={`rounded-md px-2.5 py-1 text-sm font-medium transition-colors ${isClient ? "bg-emerald-600 text-white" : "text-slate-600 hover:bg-slate-200"}`}
+            >
+              顧客向け
+            </Link>
+          </div>
           <ReportRangePicker kind={rp.kind} date={ymdUtc(rp.start)} from={sp.from} to={sp.to} />
-          <a href={`/reports/brands/${accountId}/csv?${query}`} className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+          <a href={`/reports/brands/${accountId}/csv?${viewQuery}`} className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
             CSV出力
           </a>
           <PrintButton />
@@ -186,7 +208,7 @@ export default async function BrandReportDetailPage({
 
       {/* ヒーロー */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-        <div className="lg:col-span-2 rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5">
+        <div className={`${isClient ? "lg:col-span-3" : "lg:col-span-2"} rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5`}>
           <div className="text-xs text-emerald-700 font-medium">コンテンツ経由の売上（動画＋ライブ）</div>
           <div className="mt-1 flex items-end gap-3">
             <span className="text-4xl font-bold text-emerald-700 tracking-tight">{curContentGmv == null ? "—" : formatYen(curContentGmv)}</span>
@@ -196,15 +218,17 @@ export default async function BrandReportDetailPage({
           </div>
           <div className="mt-4"><CompositionBar video={cur.videoGmv ?? 0} live={cur.liveGmv ?? 0} /></div>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <div className="text-xs text-slate-500 font-medium mb-3">広告パフォーマンス</div>
-          <dl className="space-y-3">
-            <MiniRow label="広告経由GMV" value={cur.adGmv == null ? "—" : formatYen(cur.adGmv)} delta={trendPct(cur.adGmv, previous.adGmv)} deltaAbs={signedYen(cur.adGmv, previous.adGmv)} />
-            <MiniRow label="ROI" value={pct(curRoi)} delta={trendPct(curRoi, prevRoi)} />
-            <MiniRow label="広告費" value={cur.adSpend == null ? "—" : formatYen(cur.adSpend)} delta={trendPct(cur.adSpend, previous.adSpend)} deltaAbs={signedYen(cur.adSpend, previous.adSpend)} invert />
-            <MiniRow label="日予算消化率" value={pct(curRate)} delta={trendPct(curRate, prevRate)} invert />
-          </dl>
-        </div>
+        {!isClient && (
+          <div className="rounded-xl border border-slate-200 bg-white p-5">
+            <div className="text-xs text-slate-500 font-medium mb-3">広告パフォーマンス</div>
+            <dl className="space-y-3">
+              <MiniRow label="広告経由GMV" value={cur.adGmv == null ? "—" : formatYen(cur.adGmv)} delta={trendPct(cur.adGmv, previous.adGmv)} deltaAbs={signedYen(cur.adGmv, previous.adGmv)} />
+              <MiniRow label="ROI" value={pct(curRoi)} delta={trendPct(curRoi, prevRoi)} />
+              <MiniRow label="広告費" value={cur.adSpend == null ? "—" : formatYen(cur.adSpend)} delta={trendPct(cur.adSpend, previous.adSpend)} deltaAbs={signedYen(cur.adSpend, previous.adSpend)} invert />
+              <MiniRow label="日予算消化率" value={pct(curRate)} delta={trendPct(curRate, prevRate)} invert />
+            </dl>
+          </div>
+        )}
       </div>
 
       {/* サマリー（自動示唆＋手動メモ） */}
@@ -223,7 +247,7 @@ export default async function BrandReportDetailPage({
         <StatTile label="動画投稿数" value={nz(cur.videoPosts)} deltaPct={trendPct(cur.videoPosts, previous.videoPosts)} />
         <StatTile label="ライブ実施回数" value={nz(cur.liveCount)} deltaPct={trendPct(cur.liveCount, previous.liveCount)} />
         <StatTile label="注文数" value={nz(cur.orderCount)} deltaPct={trendPct(cur.orderCount, previous.orderCount)} />
-        <StatTile label="CPA" value={curCpa == null ? "—" : formatYen(curCpa)} deltaPct={trendPct(curCpa, prevCpa)} invert />
+        {!isClient && <StatTile label="CPA" value={curCpa == null ? "—" : formatYen(curCpa)} deltaPct={trendPct(curCpa, prevCpa)} invert />}
         <StatTile label="配送 売上個数" value={nz(cur.shippingQty)} deltaPct={trendPct(cur.shippingQty, previous.shippingQty)} />
         <StatTile label="配送 売上金額" value={cur.shippingAmount == null ? "—" : formatYen(cur.shippingAmount)} deltaPct={trendPct(cur.shippingAmount, previous.shippingAmount)} />
       </div>
@@ -254,20 +278,24 @@ export default async function BrandReportDetailPage({
         </div>
       </section>
 
-      {/* 推移グラフ */}
-      <div className="print:hidden grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+      {/* 推移グラフ（PDF/印刷にも出力） */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
         <ChartCard title={`チャネル別売上（動画/ライブ）推移 ・ ${trendSuffix}`}>
           {hasChannelGmv ? <ChannelGmvChart data={channelGmvChartData} /> : <Empty note="動画/ライブGMVは案件進捗管理から日次で入力してください" />}
         </ChartCard>
         <ChartCard title={`クリエイティブ活動 推移 ・ ${trendSuffix}`}>
           {allReports.length === 0 ? <Empty /> : <CreativeChart data={creativeChartData} />}
         </ChartCard>
-        <ChartCard title={`広告費 と 広告経由GMV ・ ${trendSuffix}`}>
-          {hasAdData ? <AdCompareChart data={adChartData} /> : <Empty note="広告実績は案件進捗管理から入力してください" />}
-        </ChartCard>
-        <ChartCard title={`ROI 推移 ・ ${trendSuffix}`}>
-          {hasAdData ? <RoiTrendChart data={roiChartData} /> : <Empty note="広告実績は案件進捗管理から入力してください" />}
-        </ChartCard>
+        {!isClient && (
+          <>
+            <ChartCard title={`広告費 と 広告経由GMV ・ ${trendSuffix}`}>
+              {hasAdData ? <AdCompareChart data={adChartData} /> : <Empty note="広告実績は案件進捗管理から入力してください" />}
+            </ChartCard>
+            <ChartCard title={`ROI 推移 ・ ${trendSuffix}`}>
+              {hasAdData ? <RoiTrendChart data={roiChartData} /> : <Empty note="広告実績は案件進捗管理から入力してください" />}
+            </ChartCard>
+          </>
+        )}
       </div>
     </div>
   );
@@ -287,7 +315,7 @@ function MiniRow({ label, value, delta, invert, deltaAbs }: { label: string; val
 
 function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section>
+    <section className="avoid-break">
       <h2 className="text-sm font-semibold text-slate-700 mb-2">{title}</h2>
       <div className="rounded-xl border border-slate-200 bg-white p-4">{children}</div>
     </section>
