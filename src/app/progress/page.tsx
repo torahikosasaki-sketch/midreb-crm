@@ -85,6 +85,9 @@ export default async function ProgressPage() {
                 {u.status === "終了" && (
                   <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">終了</span>
                 )}
+                {!u.accountId && (
+                  <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700 whitespace-nowrap">顧客未設定</span>
+                )}
               </div>
               <div className="text-[11px] text-slate-400">
                 {unitBrandLabel(u)}

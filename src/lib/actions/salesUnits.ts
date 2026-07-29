@@ -46,3 +46,16 @@ export async function deleteSalesUnit(id: string) {
   revalidatePath("/progress");
   redirect("/progress");
 }
+
+/**
+ * 販売単位に顧客（メーカー）を割り当てる。メーカー別レポートの「未分類」枠からの
+ * クイック割当用。商材は顧客に属するため、顧客変更時は不整合を避けて商材をクリアする。
+ * accountId が空文字なら未設定（null）に戻す。
+ */
+export async function assignUnitAccount(id: string, fd: FormData) {
+  const accountId = str(fd, "accountId");
+  await prisma.salesUnit.update({ where: { id }, data: { accountId, productId: null } });
+  revalidatePath("/reports/brands");
+  revalidatePath("/progress");
+  revalidatePath(`/progress/${id}`);
+}
