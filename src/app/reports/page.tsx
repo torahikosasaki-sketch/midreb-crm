@@ -7,20 +7,15 @@ const REPORT_TYPES = [
     href: "/reports/daily",
     title: "日次進捗報告",
     description:
-      "クリエイティブ（動画投稿数・ライブ実施回数）、広告（広告費・GMV・ROI・注文数・CPA・日予算消化率）、配送依頼（売上個数・売上金額）を日次で集計。顧客向け・内部向けに印刷/PDF出力できます。",
+      "クリエイティブ（動画投稿数・ライブ実施回数）、広告（広告費・GMV・ROI・注文数・CPA・日予算消化率）、配送依頼（売上個数・売上金額）を集計。日次/週次(金〜木)/月次/任意期間で切替でき、顧客向け・内部向けに印刷/PDF出力できます。",
     enabled: true,
   },
   {
-    href: "#",
-    title: "週次サマリ",
-    description: "販売単位×週の実績サマリ（準備中）",
-    enabled: false,
-  },
-  {
-    href: "#",
-    title: "月次実績",
-    description: "月次の売上・パイプライン実績サマリ（準備中）",
-    enabled: false,
+    href: "/reports/brands",
+    title: "メーカー別レポート",
+    description:
+      "顧客（メーカー）ごとに販売単位を合算したレポート。顧客単位のコンテンツ売上・広告実績・推移を表示し、PDF印刷・CSVで出力できます。",
+    enabled: true,
   },
 ] as const;
 
