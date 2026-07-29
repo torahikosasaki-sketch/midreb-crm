@@ -17,6 +17,13 @@ const REPORT_TYPES = [
       "顧客（メーカー）ごとに販売単位を合算したレポート。顧客単位のコンテンツ売上・広告実績・推移を表示し、PDF印刷・CSVで出力できます。",
     enabled: true,
   },
+  {
+    href: "/reports/import",
+    title: "CSVインポート",
+    description:
+      "Seller Centerの商品別CSVを読み込み、日次実績に自動反映します。手入力の負荷を軽減。※列マッピングは暫定（要件定義で確定予定）。",
+    enabled: true,
+  },
 ] as const;
 
 export default function ReportsPage() {
