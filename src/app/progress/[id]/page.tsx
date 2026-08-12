@@ -71,8 +71,8 @@ export default async function SalesUnitDetail({
     <div className="p-6 max-w-6xl">
       <div className="mb-4 flex items-start justify-between">
         <div>
-          <Link href="/progress" className="text-sm text-emerald-600 hover:underline">
-            ← 案件進捗管理
+          <Link href={`/progress/accounts/${unit.accountId ?? "unassigned"}`} className="text-sm text-emerald-600 hover:underline">
+            ← {unit.account?.name ?? "未分類（顧客未設定）"}
           </Link>
           <div className="flex items-center gap-2 mt-1">
             <h1 className="text-xl font-bold">{unit.productSku ?? unit.brand}</h1>
