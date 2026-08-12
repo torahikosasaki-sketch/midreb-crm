@@ -121,3 +121,74 @@ export function CreativeChart({ data }: { data: CreativePoint[] }) {
     </ResponsiveContainer>
   );
 }
+
+// ── ① 週次: 売上高・広告費（¥）＋ ROI（%）。単位が違うので2段パネルでx軸を共有（デュアル軸なし） ──
+export type WeeklyAdRoiPoint = { week: string; 売上高: number; 広告費: number; ROI: number | null };
+
+export function WeeklyAdRoiChart({ data }: { data: WeeklyAdRoiPoint[] }) {
+  return (
+    <div>
+      <ResponsiveContainer width="100%" height={150}>
+        <ComposedChart data={data} margin={{ top: 6, right: 10, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
+          <XAxis dataKey="week" hide />
+          <YAxis tick={axisTick} tickLine={false} axisLine={false} tickFormatter={yenAxis} width={48} />
+          <Tooltip {...tooltipStyle} formatter={yenTooltip} />
+          <Legend wrapperStyle={{ fontSize: 12 }} />
+          <Bar isAnimationActive={false} dataKey="売上高" fill={CH.gmv} radius={[3, 3, 0, 0]} maxBarSize={22} />
+          <Bar isAnimationActive={false} dataKey="広告費" fill={CH.adSpend} radius={[3, 3, 0, 0]} maxBarSize={22} />
+        </ComposedChart>
+      </ResponsiveContainer>
+      <ResponsiveContainer width="100%" height={110}>
+        <ComposedChart data={data} margin={{ top: 4, right: 10, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
+          <XAxis dataKey="week" tick={axisTick} tickLine={false} axisLine={{ stroke: GRID }} />
+          <YAxis tick={axisTick} tickLine={false} axisLine={false} unit="%" width={48} />
+          <Tooltip {...tooltipStyle} formatter={pctTooltip} />
+          <Legend wrapperStyle={{ fontSize: 12 }} />
+          <Area isAnimationActive={false} type="monotone" dataKey="ROI" stroke="none" fill={CH.roi} fillOpacity={0.1} connectNulls />
+          <Line isAnimationActive={false} type="monotone" dataKey="ROI" name="ROI（%）" stroke={CH.roi} strokeWidth={2} dot={{ r: 2.5, fill: CH.roi }} connectNulls />
+        </ComposedChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+// ── ② 週次: 動画/ライブ 経由売上（¥）＋ 投稿数/実施数（回）。2段パネルでx軸を共有 ──
+// 色はエンティティ固定（動画=青 / ライブ=菫）を上下段で一貫させる。
+export type WeeklyChannelActivityPoint = {
+  week: string;
+  動画経由売上: number;
+  ライブ経由売上: number;
+  動画投稿数: number;
+  LIVE実施数: number;
+};
+
+export function WeeklyChannelActivityChart({ data }: { data: WeeklyChannelActivityPoint[] }) {
+  return (
+    <div>
+      <ResponsiveContainer width="100%" height={150}>
+        <ComposedChart data={data} margin={{ top: 6, right: 10, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
+          <XAxis dataKey="week" hide />
+          <YAxis tick={axisTick} tickLine={false} axisLine={false} tickFormatter={yenAxis} width={48} />
+          <Tooltip {...tooltipStyle} formatter={yenTooltip} />
+          <Legend wrapperStyle={{ fontSize: 12 }} />
+          <Bar isAnimationActive={false} dataKey="動画経由売上" fill={CH.video} radius={[3, 3, 0, 0]} maxBarSize={20} />
+          <Bar isAnimationActive={false} dataKey="ライブ経由売上" fill={CH.live} radius={[3, 3, 0, 0]} maxBarSize={20} />
+        </ComposedChart>
+      </ResponsiveContainer>
+      <ResponsiveContainer width="100%" height={118}>
+        <ComposedChart data={data} margin={{ top: 4, right: 10, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
+          <XAxis dataKey="week" tick={axisTick} tickLine={false} axisLine={{ stroke: GRID }} />
+          <YAxis tick={axisTick} tickLine={false} axisLine={false} allowDecimals={false} width={48} />
+          <Tooltip {...tooltipStyle} />
+          <Legend wrapperStyle={{ fontSize: 12 }} />
+          <Bar isAnimationActive={false} dataKey="動画投稿数" fill={CH.video} radius={[3, 3, 0, 0]} maxBarSize={20} />
+          <Bar isAnimationActive={false} dataKey="LIVE実施数" fill={CH.live} radius={[3, 3, 0, 0]} maxBarSize={20} />
+        </ComposedChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}

@@ -13,8 +13,7 @@ import {
   previousPeriodWord,
   periodQuery,
   periodKey,
-  bucketConfig,
-  recentBuckets,
+  weekStartOf,
   trendPct,
   buildInsights,
   ymdUtc,
@@ -28,17 +27,13 @@ import { StatTile } from "@/components/StatTile";
 import { SummaryEditor } from "@/components/SummaryEditor";
 import { CompositionBar } from "@/components/CompositionBar";
 import {
-  AdCompareChart,
-  RoiTrendChart,
-  CreativeChart,
-  ChannelGmvChart,
-  type DailyAdPoint,
-  type RoiPoint,
-  type CreativePoint,
-  type ChannelGmvPoint,
+  WeeklyAdRoiChart,
+  WeeklyChannelActivityChart,
+  type WeeklyAdRoiPoint,
+  type WeeklyChannelActivityPoint,
 } from "@/components/DailyReportChart";
 import { CH } from "@/lib/reportColors";
-import { unitBrandLabel } from "@/lib/progress";
+import { unitBrandLabel, weekLabel } from "@/lib/progress";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +70,45 @@ function aggregateUnits(units: UnitWithData[], start: Date, end: Date): { agg: D
   };
   const budget = perUnit.reduce((s, x) => s + (effectiveDailyBudget(x.agg, x.unit.dailyAdBudget) ?? 0), 0);
   return { agg, budget };
+}
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+type WeeklyTrendRow = {
+  week: string;
+  売上高: number; 広告費: number; ROI: number | null;
+  動画経由売上: number; ライブ経由売上: number; 動画投稿数: number; LIVE実施数: number;
+};
+
+/** 日次実績を金曜起点の週へ集約し、直近maxWeeks週分を返す（欠測週は0埋め）。週次推移グラフ用。 */
+function buildWeeklyTrend(reports: (DailyReportLike & { reportDate: Date })[], maxWeeks = 10): WeeklyTrendRow[] {
+  const map = new Map<number, { adGmv: number; adSpend: number; videoPosts: number; liveCount: number; videoGmv: number; liveGmv: number }>();
+  for (const r of reports) {
+    const k = weekStartOf(r.reportDate).getTime();
+    let b = map.get(k);
+    if (!b) { b = { adGmv: 0, adSpend: 0, videoPosts: 0, liveCount: 0, videoGmv: 0, liveGmv: 0 }; map.set(k, b); }
+    b.adGmv += r.adGmv ?? 0; b.adSpend += r.adSpend ?? 0;
+    b.videoPosts += r.videoPosts ?? 0; b.liveCount += r.liveCount ?? 0;
+    b.videoGmv += r.videoGmv ?? 0; b.liveGmv += r.liveGmv ?? 0;
+  }
+  if (map.size === 0) return [];
+  const keys = [...map.keys()].sort((a, b) => a - b);
+  const weeks: number[] = [];
+  for (let t = keys[0]; t <= keys[keys.length - 1]; t += WEEK_MS) weeks.push(t);
+  return weeks.slice(-maxWeeks).map((t) => {
+    const b = map.get(t);
+    const adGmv = b?.adGmv ?? 0, adSpend = b?.adSpend ?? 0;
+    return {
+      week: weekLabel(new Date(t)),
+      売上高: adGmv,
+      広告費: adSpend,
+      ROI: adSpend > 0 ? Math.round((adGmv / adSpend) * 1000) / 10 : null,
+      動画経由売上: b?.videoGmv ?? 0,
+      ライブ経由売上: b?.liveGmv ?? 0,
+      動画投稿数: b?.videoPosts ?? 0,
+      LIVE実施数: b?.liveCount ?? 0,
+    };
+  });
 }
 
 export default async function BrandReportDetailPage({
@@ -148,16 +182,18 @@ export default async function BrandReportDetailPage({
 
   // 推移グラフ（顧客配下の全DailyReportを集約）
   const allReports = units.flatMap((u) => u.dailyReports);
-  const bc = bucketConfig(rp);
-  const bucketUnitLabel = bc.unit === "day" ? "日" : bc.unit === "week" ? "週" : "ヶ月";
-  const trendSuffix = `直近${bc.count}${bucketUnitLabel}`;
-  const buckets = recentBuckets(allReports, rp);
-  const adChartData: DailyAdPoint[] = buckets.map((b) => ({ day: b.label, 広告費: b.data.adSpend ?? 0, 売上GMV: b.data.adGmv ?? 0 }));
-  const roiChartData: RoiPoint[] = buckets.map((b) => ({ day: b.label, ROI: roi(b.data) }));
-  const creativeChartData: CreativePoint[] = buckets.map((b) => ({ day: b.label, 動画投稿数: b.data.videoPosts ?? 0, ライブ実施回数: b.data.liveCount ?? 0 }));
-  const channelGmvChartData: ChannelGmvPoint[] = buckets.map((b) => ({ day: b.label, 動画GMV: b.data.videoGmv ?? 0, ライブGMV: b.data.liveGmv ?? 0 }));
-  const hasChannelGmv = buckets.some((b) => b.data.videoGmv != null || b.data.liveGmv != null);
-  const hasAdData = allReports.some((r) => r.adSpend != null || r.adGmv != null);
+  // 週次推移（金曜起点で集約・直近10週）
+  const weekly = buildWeeklyTrend(allReports, 10);
+  const hasWeekly = weekly.length > 0;
+  const adRoiData: WeeklyAdRoiPoint[] = weekly.map((w) => ({ week: w.week, 売上高: w.売上高, 広告費: w.広告費, ROI: w.ROI }));
+  const channelActivityData: WeeklyChannelActivityPoint[] = weekly.map((w) => ({
+    week: w.week,
+    動画経由売上: w.動画経由売上,
+    ライブ経由売上: w.ライブ経由売上,
+    動画投稿数: w.動画投稿数,
+    LIVE実施数: w.LIVE実施数,
+  }));
+  const weekSpan = weekly.length > 0 ? `直近${weekly.length}週` : "";
 
   const summaryTitle =
     rp.kind === "day" ? "本日のサマリー" : rp.kind === "week" ? "今週のサマリー" : rp.kind === "month" ? "今月のサマリー" : "期間のサマリー";
@@ -278,25 +314,23 @@ export default async function BrandReportDetailPage({
         </div>
       </section>
 
-      {/* 推移グラフ（PDF/印刷にも出力） */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
-        <ChartCard title={`チャネル別売上（動画/ライブ）推移 ・ ${trendSuffix}`}>
-          {hasChannelGmv ? <ChannelGmvChart data={channelGmvChartData} /> : <Empty note="動画/ライブGMVは案件進捗管理から日次で入力してください" />}
-        </ChartCard>
-        <ChartCard title={`クリエイティブ活動 推移 ・ ${trendSuffix}`}>
-          {allReports.length === 0 ? <Empty /> : <CreativeChart data={creativeChartData} />}
-        </ChartCard>
-        {!isClient && (
-          <>
-            <ChartCard title={`広告費 と 広告経由GMV ・ ${trendSuffix}`}>
-              {hasAdData ? <AdCompareChart data={adChartData} /> : <Empty note="広告実績は案件進捗管理から入力してください" />}
+      {/* 週次の推移グラフ（PDF/印刷にも出力） */}
+      <section className="mb-8">
+        <h2 className="text-sm font-semibold text-slate-700 mb-2">
+          週次の推移
+          {weekSpan && <span className="ml-2 text-xs font-normal text-slate-400">金曜起点（金〜木）・{weekSpan}</span>}
+        </h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {!isClient && (
+            <ChartCard title="① 売上高・広告費（上）と ROI（下）">
+              {hasWeekly ? <WeeklyAdRoiChart data={adRoiData} /> : <Empty note="広告実績は案件進捗管理から入力してください" />}
             </ChartCard>
-            <ChartCard title={`ROI 推移 ・ ${trendSuffix}`}>
-              {hasAdData ? <RoiTrendChart data={roiChartData} /> : <Empty note="広告実績は案件進捗管理から入力してください" />}
-            </ChartCard>
-          </>
-        )}
-      </div>
+          )}
+          <ChartCard title="② 動画/ライブ 経由売上（上）と 投稿数・実施数（下）">
+            {hasWeekly ? <WeeklyChannelActivityChart data={channelActivityData} /> : <Empty note="動画/ライブ実績は案件進捗管理から入力してください" />}
+          </ChartCard>
+        </div>
+      </section>
     </div>
   );
 }
