@@ -8,6 +8,7 @@ import { DeleteButton } from "@/components/DeleteButton";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ProgressChart, type ProgressPoint } from "@/components/ProgressChart";
 import { AccountProductPicker } from "@/components/AccountProductPicker";
+import { UnitCsvImport } from "@/components/UnitCsvImport";
 import {
   SALES_UNIT_STATUSES,
   weekSales,
@@ -174,6 +175,12 @@ export default async function SalesUnitDetail({
             日次進捗報告レポートを見る →
           </Link>
         </div>
+
+        {/* CSV取込（この販売単位に該当するSKUだけを集約して反映） */}
+        <div className="mb-3">
+          <UnitCsvImport salesUnitId={id} storedCount={unit.csvSkuIds.length} />
+        </div>
+
         <div className="overflow-auto rounded-lg border border-slate-200">
           <table className="w-full text-sm bg-white">
             <thead>

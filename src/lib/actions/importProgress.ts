@@ -2,7 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { aggregateSellerOrders, type ProductSummary } from "@/lib/sellerOrderImport";
+import {
+  aggregateSellerOrders,
+  aggregateSellerOrdersBySku,
+  type ProductSummary,
+  type SkuSummary,
+} from "@/lib/sellerOrderImport";
 
 const MAX_PRODUCTS = 2000;
 
@@ -140,5 +145,107 @@ export async function commitProgressImport(
     unitsTouched: touchedUnits.size,
     mappedProducts: mappedProductKeys.size,
     skippedProducts: allProductKeys.size - mappedProductKeys.size,
+  };
+}
+
+// ============================================================================
+// 商品ページ内（販売単位ごと）のCSV取り込み。SKU IDのひも付けを記憶し、次回以降は自動化する。
+// ============================================================================
+
+export type UnitCsvSku = SkuSummary & { linked: boolean };
+
+export type UnitCsvPreview = {
+  skus: UnitCsvSku[];
+  storedSkuIds: string[]; // この販売単位に記憶済みのSKU ID
+  linkedCount: number; // CSV内で記憶済みとして検出されたSKU数
+  warnings: string[];
+  orderRows: number;
+  dateRange: { min: string; max: string } | null;
+};
+
+/** 販売単位の視点でCSVを解析。記憶済みSKUに linked フラグを付けて返す。DB非書込。 */
+export async function previewUnitCsvImport(salesUnitId: string, csvText: string): Promise<UnitCsvPreview> {
+  const unit = await prisma.salesUnit.findUnique({ where: { id: salesUnitId }, select: { csvSkuIds: true } });
+  const stored = unit?.csvSkuIds ?? [];
+  const storedSet = new Set(stored);
+  const agg = aggregateSellerOrdersBySku(csvText);
+  const skus: UnitCsvSku[] = agg.skus.map((s) => ({ ...s, linked: storedSet.has(s.skuId) }));
+  return {
+    skus,
+    storedSkuIds: stored,
+    linkedCount: skus.filter((s) => s.linked).length,
+    warnings: agg.warnings,
+    orderRows: agg.orderRows,
+    dateRange: agg.dateRange,
+  };
+}
+
+export type UnitCsvResult = {
+  created: number;
+  updated: number;
+  days: number;
+  skusUsed: number;
+  remembered: boolean;
+  dateRange: { min: string; max: string } | null;
+};
+
+/**
+ * 販売単位ごとのCSV取り込み実行。選択された skuIds の明細を (日付) に集約し、
+ * この販売単位の DailyReport に upsert（売上個数・売上金額・注文数のみ）。
+ * remember=true の場合、選択SKU IDを販売単位に記憶し次回以降の自動選択に使う。
+ */
+export async function commitUnitCsvImport(
+  salesUnitId: string,
+  csvText: string,
+  skuIds: string[],
+  remember: boolean
+): Promise<UnitCsvResult> {
+  const wanted = new Set(skuIds);
+  const agg = aggregateSellerOrdersBySku(csvText);
+
+  // 選択SKUを日付で集約
+  const byDay = new Map<string, { qty: number; amount: number; orders: number }>();
+  for (const row of agg.perSkuDay) {
+    if (!wanted.has(row.skuId)) continue;
+    let b = byDay.get(row.reportDate);
+    if (!b) { b = { qty: 0, amount: 0, orders: 0 }; byDay.set(row.reportDate, b); }
+    b.qty += row.qty; b.amount += row.amount; b.orders += row.orderCount;
+  }
+
+  let created = 0;
+  let updated = 0;
+  for (const [date, b] of byDay) {
+    const reportDate = toUtcMidnight(date);
+    const data = { shippingQty: b.qty, shippingAmount: b.amount, orderCount: b.orders };
+    const existing = await prisma.dailyReport.findUnique({
+      where: { salesUnitId_reportDate: { salesUnitId, reportDate } },
+      select: { id: true },
+    });
+    if (existing) {
+      await prisma.dailyReport.update({ where: { id: existing.id }, data });
+      updated++;
+    } else {
+      await prisma.dailyReport.create({ data: { salesUnitId, reportDate, ...data } });
+      created++;
+    }
+  }
+
+  if (remember) {
+    await prisma.salesUnit.update({ where: { id: salesUnitId }, data: { csvSkuIds: skuIds } });
+  }
+
+  revalidatePath("/progress");
+  revalidatePath(`/progress/${salesUnitId}`);
+  revalidatePath("/reports/daily");
+  revalidatePath(`/reports/daily/${salesUnitId}`);
+
+  const dates = [...byDay.keys()].sort();
+  return {
+    created,
+    updated,
+    days: byDay.size,
+    skusUsed: [...wanted].filter((id) => agg.skus.some((s) => s.skuId === id)).length,
+    remembered: remember,
+    dateRange: dates.length ? { min: dates[0], max: dates[dates.length - 1] } : null,
   };
 }
