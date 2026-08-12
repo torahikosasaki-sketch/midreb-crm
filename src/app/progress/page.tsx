@@ -55,8 +55,19 @@ export default async function ProgressPage() {
 
   return (
     <div className="flex flex-col h-full min-h-0">
+      {/* ツールバー */}
+      <div className="flex items-center justify-between px-4 pt-3 pb-2">
+        <h1 className="text-lg font-bold">案件進捗管理</h1>
+        <Link
+          href="/progress/import"
+          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+        >
+          ⬆ CSV取込
+        </Link>
+      </div>
+
       {/* サマリKPI */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-slate-200 border-b border-slate-200">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-slate-200 border-y border-slate-200">
         <Kpi label="顧客（メーカー）" value={`${rows.length} 社`} accent />
         <Kpi label="稼働中の販売単位" value={`${totalActive} 件`} />
         <Kpi label="直近週GMV（全社）" value={formatYen(totalLatestGmv)} />
