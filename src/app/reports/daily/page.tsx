@@ -201,8 +201,8 @@ export default async function DailyReportIndexPage({
         <StatTile label="ライブ実施回数" value={nz(current.totalLiveCount)} deltaPct={trendPct(current.totalLiveCount, previous.totalLiveCount)} />
         <StatTile label="注文数" value={nz(current.totalOrders)} deltaPct={trendPct(current.totalOrders, previous.totalOrders)} />
         <StatTile label="CPA" value={current.totalCpa == null ? "—" : formatYen(current.totalCpa)} deltaPct={trendPct(current.totalCpa, previous.totalCpa)} invert />
-        <StatTile label="配送 売上個数" value={nz(current.totalShippingQty)} deltaPct={trendPct(current.totalShippingQty, previous.totalShippingQty)} />
-        <StatTile label="配送 売上金額" value={formatYen(current.totalShippingAmount)} deltaPct={trendPct(current.totalShippingAmount, previous.totalShippingAmount)} />
+        <StatTile label="販売数" value={nz(current.totalShippingQty)} deltaPct={trendPct(current.totalShippingQty, previous.totalShippingQty)} />
+        <StatTile label="売上金額" value={formatYen(current.totalShippingAmount)} deltaPct={trendPct(current.totalShippingAmount, previous.totalShippingAmount)} />
       </div>
 
       {/* 販売単位別 コンテンツ売上ランキング */}
@@ -263,8 +263,8 @@ export default async function DailyReportIndexPage({
                 <th className="py-2 px-3 font-medium text-right">注文数</th>
                 <th className="py-2 px-3 font-medium text-right">CPA</th>
                 <th className="py-2 px-3 font-medium text-right">消化率</th>
-                <th className="py-2 px-3 font-medium text-right">配送個数</th>
-                <th className="py-2 px-3 font-medium text-right">配送金額</th>
+                <th className="py-2 px-3 font-medium text-right">販売数</th>
+                <th className="py-2 px-3 font-medium text-right">売上金額</th>
               </tr>
             </thead>
             <tbody>

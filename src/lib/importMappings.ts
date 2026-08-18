@@ -30,8 +30,8 @@ export const METRIC_LABELS: Record<DailyMetricField, string> = {
   adSpend: "広告費",
   adGmv: "広告経由GMV",
   orderCount: "注文数",
-  shippingQty: "配送 売上個数",
-  shippingAmount: "配送 売上金額",
+  shippingQty: "販売数",
+  shippingAmount: "売上金額",
 };
 
 export type SellerCenterMapping = {

@@ -54,8 +54,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ acco
   });
 
   const header = isClient
-    ? ["販売単位", "動画投稿数", "ライブ実施回数", "動画経由GMV", "ライブ経由GMV", "注文数", "配送個数", "配送金額"]
-    : ["販売単位", "動画投稿数", "ライブ実施回数", "動画経由GMV", "ライブ経由GMV", "広告費", "広告経由GMV", "ROI(%)", "注文数", "CPA", "日予算消化率(%)", "配送個数", "配送金額"];
+    ? ["販売単位", "動画投稿数", "ライブ実施回数", "動画経由GMV", "ライブ経由GMV", "注文数", "販売数", "売上金額"]
+    : ["販売単位", "動画投稿数", "ライブ実施回数", "動画経由GMV", "ライブ経由GMV", "広告費", "広告経由GMV", "ROI(%)", "注文数", "CPA", "日予算消化率(%)", "販売数", "売上金額"];
   const csv = toCsv(header, rows);
 
   const suffix = isClient ? "_顧客向け" : "";

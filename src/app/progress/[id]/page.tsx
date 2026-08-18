@@ -196,8 +196,8 @@ export default async function SalesUnitDetail({
                 <th className="py-2 px-3 font-medium text-right">注文数</th>
                 <th className="py-2 px-3 font-medium text-right">CPA</th>
                 <th className="py-2 px-3 font-medium text-right">消化率</th>
-                <th className="py-2 px-3 font-medium text-right">配送個数</th>
-                <th className="py-2 px-3 font-medium text-right">配送金額</th>
+                <th className="py-2 px-3 font-medium text-right">販売数</th>
+                <th className="py-2 px-3 font-medium text-right">売上金額</th>
                 <th className="py-2 px-3 font-medium">メモ</th>
                 <th className="py-2"></th>
               </tr>
@@ -257,13 +257,13 @@ export default async function SalesUnitDetail({
               <Inp name="liveSales" label="販売数" type="number" />
               <Inp name="liveGmv" label="GMV" type="number" w="w-24" />
             </FieldGroup>
-            <FieldGroup label="広告・配送">
+            <FieldGroup label="広告・売上（注文ベース）">
               <Inp name="adSpend" label="広告費" type="number" w="w-24" />
               <Inp name="adGmv" label="広告GMV" type="number" w="w-24" />
               <Inp name="orderCount" label="注文数" type="number" />
               <Inp name="dailyBudget" label={`日予算(既定${unit.dailyAdBudget ?? "—"})`} type="number" w="w-28" />
-              <Inp name="shippingQty" label="配送個数" type="number" w="w-24" />
-              <Inp name="shippingAmount" label="配送金額" type="number" w="w-24" />
+              <Inp name="shippingQty" label="販売数" type="number" w="w-24" />
+              <Inp name="shippingAmount" label="売上金額" type="number" w="w-24" />
             </FieldGroup>
             <Inp name="memo" label="メモ / 活動記録" w="w-48" />
             <SubmitButton

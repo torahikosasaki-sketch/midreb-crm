@@ -53,8 +53,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       "注文数",
       "CPA",
       "日予算消化率(%)",
-      "配送個数",
-      "配送金額",
+      "販売数",
+      "売上金額",
     ],
     rows
   );

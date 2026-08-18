@@ -284,8 +284,8 @@ export default async function BrandReportDetailPage({
         <StatTile label="ライブ実施回数" value={nz(cur.liveCount)} deltaPct={trendPct(cur.liveCount, previous.liveCount)} />
         <StatTile label="注文数" value={nz(cur.orderCount)} deltaPct={trendPct(cur.orderCount, previous.orderCount)} />
         {!isClient && <StatTile label="CPA" value={curCpa == null ? "—" : formatYen(curCpa)} deltaPct={trendPct(curCpa, prevCpa)} invert />}
-        <StatTile label="配送 売上個数" value={nz(cur.shippingQty)} deltaPct={trendPct(cur.shippingQty, previous.shippingQty)} />
-        <StatTile label="配送 売上金額" value={cur.shippingAmount == null ? "—" : formatYen(cur.shippingAmount)} deltaPct={trendPct(cur.shippingAmount, previous.shippingAmount)} />
+        <StatTile label="販売数" value={nz(cur.shippingQty)} deltaPct={trendPct(cur.shippingQty, previous.shippingQty)} />
+        <StatTile label="売上金額" value={cur.shippingAmount == null ? "—" : formatYen(cur.shippingAmount)} deltaPct={trendPct(cur.shippingAmount, previous.shippingAmount)} />
       </div>
 
       {/* 販売単位別 内訳 */}
