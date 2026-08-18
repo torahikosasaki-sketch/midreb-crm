@@ -26,11 +26,9 @@ export async function upsertDailyReport(salesUnitId: string, fd: FormData) {
   }
   const data = {
     videoPosts: num(fd, "videoPosts"),
-    videoPosters: num(fd, "videoPosters"),
     videoSales: num(fd, "videoSales"),
     videoGmv: num(fd, "videoGmv"),
     liveCount: num(fd, "liveCount"),
-    livePresenters: num(fd, "livePresenters"),
     liveSales: num(fd, "liveSales"),
     liveGmv: num(fd, "liveGmv"),
     adSpend: num(fd, "adSpend"),

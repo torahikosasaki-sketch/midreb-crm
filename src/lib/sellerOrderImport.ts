@@ -9,9 +9,10 @@ export const SELLER_ORDER_MAPPING = {
   /** 取り込み対象を「注文」に限定するための取引タイプ列と値（返金・調整は除外） */
   txnTypeHeader: "取引タイプ",
   orderTxnValue: "注文",
-  /** 売上日として使う列（優先）。空/不正なら fallbackDateHeader を使う */
-  dateHeader: "注文作成日",
-  fallbackDateHeader: "明細の日付",
+  /** 売上日として使う列（優先）。空/不正なら fallbackDateHeader を使う。
+   *  会議決定: 売上が発生した日＝「明細の日付」を採用（従来の注文作成日はフォールバック）。 */
+  dateHeader: "明細の日付",
+  fallbackDateHeader: "注文作成日",
   dateFormat: "slash" as const, // 2026/01/26 形式
   /** 商品識別列（人が読む表示・グローバル取込の突合キー） */
   productHeader: "商品名",

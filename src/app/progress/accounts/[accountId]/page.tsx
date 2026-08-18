@@ -24,7 +24,7 @@ type UnitWithDaily = {
   store: string | null;
   status: string;
   weeklyTarget: number | null;
-  dailyReports: { reportDate: Date; videoSales: number | null; liveSales: number | null; videoGmv: number | null; liveGmv: number | null; videoPosts: number | null; videoPosters: number | null; liveCount: number | null; livePresenters: number | null }[];
+  dailyReports: { reportDate: Date; videoSales: number | null; liveSales: number | null; videoGmv: number | null; liveGmv: number | null; videoPosts: number | null; liveCount: number | null }[];
 };
 
 export default async function AccountUnitsPage({

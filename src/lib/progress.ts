@@ -14,11 +14,9 @@ export type WeekLike = {
 export type DailyLike = {
   reportDate: Date;
   videoPosts?: number | null;
-  videoPosters?: number | null;
   videoSales?: number | null;
   videoGmv?: number | null;
   liveCount?: number | null;
-  livePresenters?: number | null;
   liveSales?: number | null;
   liveGmv?: number | null;
 };
@@ -27,11 +25,9 @@ export type DailyLike = {
 export type WeekRollup = {
   weekStart: Date; // 週開始（金曜・UTC深夜）
   videoPosts: number;
-  videoPosters: number;
   videoSales: number;
   videoGmv: number;
   liveCount: number;
-  livePresenters: number;
   liveSales: number;
   liveGmv: number;
   days: number; // その週に実績が入っている日数
@@ -50,18 +46,16 @@ export function rollupWeeks(reports: DailyLike[]): WeekRollup[] {
     if (!bucket) {
       bucket = {
         weekStart: ws,
-        videoPosts: 0, videoPosters: 0, videoSales: 0, videoGmv: 0,
-        liveCount: 0, livePresenters: 0, liveSales: 0, liveGmv: 0,
+        videoPosts: 0, videoSales: 0, videoGmv: 0,
+        liveCount: 0, liveSales: 0, liveGmv: 0,
         days: 0,
       };
       map.set(key, bucket);
     }
     bucket.videoPosts += r.videoPosts ?? 0;
-    bucket.videoPosters += r.videoPosters ?? 0;
     bucket.videoSales += r.videoSales ?? 0;
     bucket.videoGmv += r.videoGmv ?? 0;
     bucket.liveCount += r.liveCount ?? 0;
-    bucket.livePresenters += r.livePresenters ?? 0;
     bucket.liveSales += r.liveSales ?? 0;
     bucket.liveGmv += r.liveGmv ?? 0;
     bucket.days += 1;

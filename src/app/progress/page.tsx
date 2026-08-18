@@ -9,7 +9,7 @@ import { rollupWeeks, weekSales, weekGmv, type WeekRollup } from "@/lib/progress
 
 export const dynamic = "force-dynamic";
 
-type UnitLike = { status: string; weeklyTarget: number | null; dailyReports: { reportDate: Date; videoSales: number | null; liveSales: number | null; videoGmv: number | null; liveGmv: number | null; videoPosts: number | null; videoPosters: number | null; liveCount: number | null; livePresenters: number | null }[] };
+type UnitLike = { status: string; weeklyTarget: number | null; dailyReports: { reportDate: Date; videoSales: number | null; liveSales: number | null; videoGmv: number | null; liveGmv: number | null; videoPosts: number | null; liveCount: number | null }[] };
 
 /** 販売単位群を顧客レベルで集計（直近週の販売・GMV・達成率・推移） */
 function summarize(units: UnitLike[]) {

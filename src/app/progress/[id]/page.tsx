@@ -125,11 +125,9 @@ export default async function SalesUnitDetail({
                 <th className="py-2 px-3 font-medium">週</th>
                 <th className="py-2 px-3 font-medium text-right">目標</th>
                 <th className="py-2 px-3 font-medium text-right bg-emerald-50/60">動画投稿</th>
-                <th className="py-2 px-3 font-medium text-right bg-emerald-50/60">動画人数</th>
                 <th className="py-2 px-3 font-medium text-right bg-emerald-50/60">動画販売</th>
                 <th className="py-2 px-3 font-medium text-right bg-emerald-50/60">動画GMV</th>
                 <th className="py-2 px-3 font-medium text-right bg-violet-50/60">ライブ回数</th>
-                <th className="py-2 px-3 font-medium text-right bg-violet-50/60">ライブ人数</th>
                 <th className="py-2 px-3 font-medium text-right bg-violet-50/60">ライブ販売</th>
                 <th className="py-2 px-3 font-medium text-right bg-violet-50/60">ライブGMV</th>
                 <th className="py-2 px-3 font-medium text-right">総販売</th>
@@ -144,11 +142,9 @@ export default async function SalesUnitDetail({
                     <td className="py-2 px-3 font-medium">{weekLabel(w.weekStart)}</td>
                     <td className="py-2 px-3 text-right tabular-nums">{nz(effectiveTarget(w, unit.weeklyTarget))}</td>
                     <td className="py-2 px-3 text-right tabular-nums bg-emerald-50/30">{nz(w.videoPosts)}</td>
-                    <td className="py-2 px-3 text-right tabular-nums bg-emerald-50/30">{nz(w.videoPosters)}</td>
                     <td className="py-2 px-3 text-right tabular-nums bg-emerald-50/30">{nz(w.videoSales)}</td>
                     <td className="py-2 px-3 text-right tabular-nums bg-emerald-50/30">{w.videoGmv === 0 ? "—" : formatYen(w.videoGmv)}</td>
                     <td className="py-2 px-3 text-right tabular-nums bg-violet-50/30">{nz(w.liveCount)}</td>
-                    <td className="py-2 px-3 text-right tabular-nums bg-violet-50/30">{nz(w.livePresenters)}</td>
                     <td className="py-2 px-3 text-right tabular-nums bg-violet-50/30">{nz(w.liveSales)}</td>
                     <td className="py-2 px-3 text-right tabular-nums bg-violet-50/30">{w.liveGmv === 0 ? "—" : formatYen(w.liveGmv)}</td>
                     <td className="py-2 px-3 text-right tabular-nums font-semibold">{weekSales(w)}</td>
@@ -160,7 +156,7 @@ export default async function SalesUnitDetail({
               })}
               {weeks.length === 0 && (
                 <tr>
-                  <td colSpan={12} className="py-6 text-center text-slate-400">記録がありません</td>
+                  <td colSpan={10} className="py-6 text-center text-slate-400">記録がありません</td>
                 </tr>
               )}
             </tbody>
@@ -189,11 +185,9 @@ export default async function SalesUnitDetail({
               <tr className="text-left text-slate-500 bg-slate-50 border-b border-slate-200">
                 <th className="py-2 px-3 font-medium">対象日</th>
                 <th className="py-2 px-3 font-medium text-right bg-emerald-50/60">動画投稿</th>
-                <th className="py-2 px-3 font-medium text-right bg-emerald-50/60">動画人数</th>
                 <th className="py-2 px-3 font-medium text-right bg-emerald-50/60">動画販売</th>
                 <th className="py-2 px-3 font-medium text-right bg-emerald-50/60">動画GMV</th>
                 <th className="py-2 px-3 font-medium text-right bg-violet-50/60">ライブ回数</th>
-                <th className="py-2 px-3 font-medium text-right bg-violet-50/60">ライブ人数</th>
                 <th className="py-2 px-3 font-medium text-right bg-violet-50/60">ライブ販売</th>
                 <th className="py-2 px-3 font-medium text-right bg-violet-50/60">ライブGMV</th>
                 <th className="py-2 px-3 font-medium text-right">広告費</th>
@@ -213,11 +207,9 @@ export default async function SalesUnitDetail({
                 <tr key={r.id} className="border-b border-slate-100">
                   <td className="py-2 px-3 font-medium whitespace-nowrap">{ymdUtc(r.reportDate)}</td>
                   <td className="py-2 px-3 text-right tabular-nums bg-emerald-50/30">{nz(r.videoPosts)}</td>
-                  <td className="py-2 px-3 text-right tabular-nums bg-emerald-50/30">{nz(r.videoPosters)}</td>
                   <td className="py-2 px-3 text-right tabular-nums bg-emerald-50/30">{nz(r.videoSales)}</td>
                   <td className="py-2 px-3 text-right tabular-nums bg-emerald-50/30">{r.videoGmv == null ? "—" : formatYen(r.videoGmv)}</td>
                   <td className="py-2 px-3 text-right tabular-nums bg-violet-50/30">{nz(r.liveCount)}</td>
-                  <td className="py-2 px-3 text-right tabular-nums bg-violet-50/30">{nz(r.livePresenters)}</td>
                   <td className="py-2 px-3 text-right tabular-nums bg-violet-50/30">{nz(r.liveSales)}</td>
                   <td className="py-2 px-3 text-right tabular-nums bg-violet-50/30">{r.liveGmv == null ? "—" : formatYen(r.liveGmv)}</td>
                   <td className="py-2 px-3 text-right tabular-nums">{r.adSpend == null ? "—" : formatYen(r.adSpend)}</td>
@@ -240,7 +232,7 @@ export default async function SalesUnitDetail({
               ))}
               {dailyReports.length === 0 && (
                 <tr>
-                  <td colSpan={19} className="py-6 text-center text-slate-400">記録がありません</td>
+                  <td colSpan={17} className="py-6 text-center text-slate-400">記録がありません</td>
                 </tr>
               )}
             </tbody>
@@ -257,13 +249,11 @@ export default async function SalesUnitDetail({
             <Inp name="reportDate" label="対象日 *" type="date" required defaultValue={todayStr} w="w-36" />
             <FieldGroup label="動画（投稿系）">
               <Inp name="videoPosts" label="投稿数" type="number" />
-              <Inp name="videoPosters" label="人数" type="number" />
               <Inp name="videoSales" label="販売数" type="number" />
               <Inp name="videoGmv" label="GMV" type="number" w="w-24" />
             </FieldGroup>
             <FieldGroup label="ライブ配信">
               <Inp name="liveCount" label="回数" type="number" />
-              <Inp name="livePresenters" label="人数" type="number" />
               <Inp name="liveSales" label="販売数" type="number" />
               <Inp name="liveGmv" label="GMV" type="number" w="w-24" />
             </FieldGroup>

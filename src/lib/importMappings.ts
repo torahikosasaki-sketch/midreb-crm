@@ -8,11 +8,9 @@
 /** DailyReport に取り込める数値指標フィールド */
 export type DailyMetricField =
   | "videoPosts"
-  | "videoPosters"
   | "videoSales"
   | "videoGmv"
   | "liveCount"
-  | "livePresenters"
   | "liveSales"
   | "liveGmv"
   | "adSpend"
@@ -24,11 +22,9 @@ export type DailyMetricField =
 /** 指標フィールドの日本語ラベル（プレビュー表示用） */
 export const METRIC_LABELS: Record<DailyMetricField, string> = {
   videoPosts: "動画投稿数",
-  videoPosters: "動画投稿人数",
   videoSales: "動画経由 販売数",
   videoGmv: "動画経由GMV",
   liveCount: "ライブ実施回数",
-  livePresenters: "ライブ配信人数",
   liveSales: "ライブ経由 販売数",
   liveGmv: "ライブ経由GMV",
   adSpend: "広告費",
@@ -60,11 +56,9 @@ export const SELLER_CENTER_MAPPING: SellerCenterMapping = {
   productHeaders: ["商品名", "SKU", "商品ID"], // ★要確定
   metricHeaders: {
     videoPosts: "動画投稿数", // ★要確定
-    videoPosters: "動画投稿人数", // ★要確定
     videoSales: "動画経由販売数", // ★要確定
     videoGmv: "動画GMV", // ★要確定
     liveCount: "ライブ配信数", // ★要確定
-    livePresenters: "ライブ配信人数", // ★要確定
     liveSales: "ライブ経由販売数", // ★要確定
     liveGmv: "ライブGMV", // ★要確定
     adSpend: "広告費", // ★要確定

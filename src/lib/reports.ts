@@ -28,11 +28,9 @@ export {
 
 export type DailyReportLike = {
   videoPosts?: number | null;
-  videoPosters?: number | null; // 動画投稿人数
   videoSales?: number | null; // 動画経由の販売数
   videoGmv?: number | null; // 動画投稿経由の売上
   liveCount?: number | null;
-  livePresenters?: number | null; // ライブ配信人数
   liveSales?: number | null; // ライブ経由の販売数
   liveGmv?: number | null; // ライブ配信経由の売上
   adSpend?: number | null;
@@ -94,11 +92,9 @@ export function sumReports(rows: DailyReportLike[]): DailyReportLike {
   };
   return {
     videoPosts: sum("videoPosts"),
-    videoPosters: sum("videoPosters"),
     videoSales: sum("videoSales"),
     videoGmv: sum("videoGmv"),
     liveCount: sum("liveCount"),
-    livePresenters: sum("livePresenters"),
     liveSales: sum("liveSales"),
     liveGmv: sum("liveGmv"),
     adSpend: sum("adSpend"),
