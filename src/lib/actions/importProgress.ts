@@ -8,6 +8,7 @@ import {
   type ProductSummary,
   type SkuSummary,
 } from "@/lib/sellerOrderImport";
+import { parseAdCampaigns, type AdCampaign } from "@/lib/adCampaignImport";
 
 const MAX_PRODUCTS = 2000;
 
@@ -248,4 +249,98 @@ export async function commitUnitCsvImport(
     remembered: remember,
     dateRange: dates.length ? { min: dates[0], max: dates[dates.length - 1] } : null,
   };
+}
+
+// ============================================================================
+// 広告CSV（Product campaign data xlsx）の取り込み。キャンペーンIDのひも付けを記憶。
+// 広告費・日予算・注文数・広告経由GMV を、手動指定した日付でこの販売単位に反映する。
+// ============================================================================
+
+export type AdCampaignPreviewItem = AdCampaign & { linked: boolean };
+
+export type AdImportPreview = {
+  campaigns: AdCampaignPreviewItem[];
+  storedCampaignIds: string[];
+  linkedCount: number;
+  warnings: string[];
+  totalRows: number;
+};
+
+/** 広告xlsx(base64)を解析。記憶済みキャンペーンに linked を付けて返す。DB非書込。 */
+export async function previewAdImport(salesUnitId: string, base64: string): Promise<AdImportPreview> {
+  const unit = await prisma.salesUnit.findUnique({ where: { id: salesUnitId }, select: { adCampaignIds: true } });
+  const stored = unit?.adCampaignIds ?? [];
+  const storedSet = new Set(stored);
+  const parsed = parseAdCampaigns(base64);
+  const campaigns: AdCampaignPreviewItem[] = parsed.campaigns.map((c) => ({ ...c, linked: storedSet.has(c.campaignId) }));
+  return {
+    campaigns,
+    storedCampaignIds: stored,
+    linkedCount: campaigns.filter((c) => c.linked).length,
+    warnings: parsed.warnings,
+    totalRows: parsed.totalRows,
+  };
+}
+
+export type AdImportResult = {
+  created: number;
+  updated: number;
+  reportDate: string;
+  campaignsUsed: number;
+  totals: { adSpend: number; dailyBudget: number; orderCount: number; adGmv: number };
+  remembered: boolean;
+};
+
+/**
+ * 広告取り込み実行。選択キャンペーンを合算し、指定日付(reportDate: YYYY-MM-DD)で
+ * この販売単位の DailyReport に upsert。書き込むのは 広告費・日予算・注文数・広告経由GMV のみ。
+ * remember=true なら選択キャンペーンIDを記憶し次回以降の自動選択に使う。
+ */
+export async function commitAdImport(
+  salesUnitId: string,
+  base64: string,
+  campaignIds: string[],
+  reportDateYmd: string,
+  remember: boolean
+): Promise<AdImportResult> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(reportDateYmd)) throw new Error("日付を YYYY-MM-DD で指定してください。");
+  const wanted = new Set(campaignIds);
+  const parsed = parseAdCampaigns(base64);
+  const picked = parsed.campaigns.filter((c) => wanted.has(c.campaignId));
+
+  const totals = picked.reduce(
+    (a, c) => ({
+      adSpend: a.adSpend + c.adSpend,
+      dailyBudget: a.dailyBudget + c.dailyBudget,
+      orderCount: a.orderCount + c.orderCount,
+      adGmv: a.adGmv + c.adGmv,
+    }),
+    { adSpend: 0, dailyBudget: 0, orderCount: 0, adGmv: 0 }
+  );
+
+  const reportDate = toUtcMidnight(reportDateYmd);
+  const data = { adSpend: totals.adSpend, dailyBudget: totals.dailyBudget, orderCount: totals.orderCount, adGmv: totals.adGmv };
+  const existing = await prisma.dailyReport.findUnique({
+    where: { salesUnitId_reportDate: { salesUnitId, reportDate } },
+    select: { id: true },
+  });
+  let created = 0, updated = 0;
+  if (existing) {
+    await prisma.dailyReport.update({ where: { id: existing.id }, data });
+    updated = 1;
+  } else {
+    await prisma.dailyReport.create({ data: { salesUnitId, reportDate, ...data } });
+    created = 1;
+  }
+
+  if (remember) {
+    await prisma.salesUnit.update({ where: { id: salesUnitId }, data: { adCampaignIds: campaignIds } });
+  }
+
+  revalidatePath("/progress");
+  revalidatePath(`/progress/${salesUnitId}`);
+  revalidatePath("/reports/daily");
+  revalidatePath(`/reports/daily/${salesUnitId}`);
+
+  return { created, updated, reportDate: reportDateYmd, campaignsUsed: picked.length, totals, remembered: remember };
 }

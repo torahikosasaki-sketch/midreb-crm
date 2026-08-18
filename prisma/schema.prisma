@@ -156,6 +156,7 @@ model SalesUnit {
   weeklyTarget  Int? // 週次目標（販売数）
   dailyAdBudget Int? // 日予算（広告費の消化率算出の既定値）
   csvSkuIds     String[]         @default([]) // 取り込みCSVのSKU IDひも付け（記憶）。この単位に該当するTikTok SKU ID群
+  adCampaignIds String[]         @default([]) // 広告CSVのキャンペーンIDひも付け（記憶）。この単位に該当する広告キャンペーンID群
   status        String           @default("稼働中") // 稼働中 / 終了
   memo          String?
   createdAt     DateTime         @default(now())

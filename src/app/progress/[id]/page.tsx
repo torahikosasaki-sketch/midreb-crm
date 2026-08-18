@@ -9,6 +9,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { ProgressChart, type ProgressPoint } from "@/components/ProgressChart";
 import { AccountProductPicker } from "@/components/AccountProductPicker";
 import { UnitCsvImport } from "@/components/UnitCsvImport";
+import { UnitAdImport } from "@/components/UnitAdImport";
 import {
   SALES_UNIT_STATUSES,
   weekSales,
@@ -176,9 +177,10 @@ export default async function SalesUnitDetail({
           </Link>
         </div>
 
-        {/* CSV取込（この販売単位に該当するSKUだけを集約して反映） */}
-        <div className="mb-3">
+        {/* CSV取込（この販売単位に該当するSKU・広告キャンペーンを集約して反映） */}
+        <div className="mb-3 space-y-2">
           <UnitCsvImport salesUnitId={id} storedCount={unit.csvSkuIds.length} />
+          <UnitAdImport salesUnitId={id} storedCount={unit.adCampaignIds.length} />
         </div>
 
         <div className="overflow-auto rounded-lg border border-slate-200">
