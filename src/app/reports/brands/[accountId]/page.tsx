@@ -199,19 +199,21 @@ export default async function BrandReportDetailPage({
     rp.kind === "day" ? "本日のサマリー" : rp.kind === "week" ? "今週のサマリー" : rp.kind === "month" ? "今月のサマリー" : "期間のサマリー";
 
   return (
-    <div className="p-6 max-w-6xl">
-      <div className="print:hidden mb-1">
+    <div className="p-6 md:p-8 max-w-6xl mx-auto">
+      <div className="print:hidden mb-2">
         <Link href={`/reports/brands?${query}`} className="text-sm text-emerald-600 hover:underline">← メーカー別レポート</Link>
       </div>
 
-      <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
         <div className="flex items-center gap-3">
           {account.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={account.logoUrl} alt={account.name} className="h-10 w-10 rounded-lg object-contain border border-slate-200 bg-white" />
-          ) : null}
+            <img src={account.logoUrl} alt={account.name} className="h-11 w-11 rounded-xl object-contain border border-slate-200 bg-white" />
+          ) : (
+            <div className="h-11 w-11 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center text-lg font-bold">{account.name.slice(0, 1)}</div>
+          )}
           <div>
-            <h1 className="text-xl font-bold">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
               {account.name}
               {isClient && <span className="ml-2 align-middle rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">顧客向け</span>}
             </h1>
@@ -244,7 +246,7 @@ export default async function BrandReportDetailPage({
 
       {/* ヒーロー */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-        <div className={`${isClient ? "lg:col-span-3" : "lg:col-span-2"} rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5`}>
+        <div className={`${isClient ? "lg:col-span-3" : "lg:col-span-2"} rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5`}>
           <div className="text-xs text-emerald-700 font-medium">コンテンツ経由の売上（動画＋ライブ）</div>
           <div className="mt-1 flex items-end gap-3">
             <span className="text-4xl font-bold text-emerald-700 tracking-tight">{curContentGmv == null ? "—" : formatYen(curContentGmv)}</span>
@@ -255,7 +257,7 @@ export default async function BrandReportDetailPage({
           <div className="mt-4"><CompositionBar video={cur.videoGmv ?? 0} live={cur.liveGmv ?? 0} /></div>
         </div>
         {!isClient && (
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5">
             <div className="text-xs text-slate-500 font-medium mb-3">広告パフォーマンス</div>
             <dl className="space-y-3">
               <MiniRow label="広告経由GMV" value={cur.adGmv == null ? "—" : formatYen(cur.adGmv)} delta={trendPct(cur.adGmv, previous.adGmv)} deltaAbs={signedYen(cur.adGmv, previous.adGmv)} />

@@ -86,14 +86,17 @@ export default async function BrandsReportPage({
   const unassignedGmv = unassignedRows.reduce((s, x) => s + x.gmv, 0);
 
   return (
-    <div className="p-6 max-w-6xl">
-      <div className="mb-1">
+    <div className="p-6 md:p-8 max-w-6xl mx-auto">
+      <div className="mb-2">
         <Link href="/reports" className="text-sm text-emerald-600 hover:underline">← レポート</Link>
       </div>
-      <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
-        <div>
-          <h1 className="text-xl font-bold">メーカー別レポート</h1>
-          <p className="text-sm text-slate-500">{rp.label} の顧客（メーカー）別 コンテンツ売上</p>
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center text-xl">🏭</div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">メーカー別レポート</h1>
+            <p className="text-sm text-slate-500">{rp.label} の顧客（メーカー）別 コンテンツ売上</p>
+          </div>
         </div>
         <ReportRangePicker kind={rp.kind} date={ymdUtc(rp.start)} from={sp.from} to={sp.to} />
       </div>
@@ -111,7 +114,7 @@ export default async function BrandsReportPage({
                 <Link
                   key={a.id}
                   href={`/reports/brands/${a.id}?${query}`}
-                  className="rounded-xl border border-slate-200 bg-white p-4 hover:border-emerald-300 hover:shadow-sm transition-all"
+                  className="rounded-2xl border border-slate-200 bg-white p-4 transition-all hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md"
                 >
                   <div className="flex items-center gap-2 mb-2">
                     {a.logoUrl ? (

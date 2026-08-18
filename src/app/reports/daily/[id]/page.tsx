@@ -132,20 +132,23 @@ export default async function DailyReportDetailPage({
   const orderSpark = buckets.map((b) => b.data.orderCount ?? 0);
 
   return (
-    <div className="p-6 max-w-6xl">
-      <div className="print:hidden mb-1">
+    <div className="p-6 md:p-8 max-w-6xl mx-auto">
+      <div className="print:hidden mb-2">
         <Link href={`/reports/daily?${query}`} className="text-sm text-emerald-600 hover:underline">
           ← 日次進捗報告
         </Link>
       </div>
 
-      <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
-        <div>
-          <h1 className="text-xl font-bold">{unit.productSku ?? unitBrandLabel(unit)}</h1>
-          <p className="text-sm text-slate-500">
-            {unitBrandLabel(unit)}
-            {unit.store ? ` ・ ${unit.store}` : ""} ・ {rp.label}
-          </p>
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-xl print:hidden">📈</div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">{unit.productSku ?? unitBrandLabel(unit)}</h1>
+            <p className="text-sm text-slate-500">
+              {unitBrandLabel(unit)}
+              {unit.store ? ` ・ ${unit.store}` : ""} ・ {rp.label}
+            </p>
+          </div>
         </div>
         <div className="print:hidden flex items-center gap-2">
           <ReportRangePicker kind={rp.kind} date={ymdUtc(rp.start)} from={sp.from} to={sp.to} />
@@ -161,7 +164,7 @@ export default async function DailyReportDetailPage({
 
       {/* ヒーロー: コンテンツ経由売上 ＋ チャネル構成 ＋ 広告サマリー */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-        <div className="lg:col-span-2 rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5">
+        <div className="lg:col-span-2 rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-xs text-emerald-700 font-medium">コンテンツ経由の売上（動画＋ライブ）</div>
@@ -183,7 +186,7 @@ export default async function DailyReportDetailPage({
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5">
           <div className="text-xs text-slate-500 font-medium mb-3">広告パフォーマンス</div>
           <dl className="space-y-3">
             <MiniRow label="広告経由GMV" value={selected.adGmv == null ? "—" : formatYen(selected.adGmv)} delta={trendPct(selected.adGmv, previous.adGmv)} deltaAbs={signedYen(selected.adGmv, previous.adGmv)} />
