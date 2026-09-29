@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   previewAdImport,
   commitAdImport,
@@ -10,20 +11,24 @@ import {
 
 const yen = (n: number) => "¥" + n.toLocaleString("ja-JP");
 
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const s = String(reader.result);
-      const comma = s.indexOf(",");
-      resolve(comma >= 0 ? s.slice(comma + 1) : s);
-    };
-    reader.onerror = () => reject(new Error("ファイルの読み込みに失敗しました。"));
-    reader.readAsDataURL(file);
-  });
+/** バイト列をbase64へ（大きいファイルでもコールスタックが溢れないようチャンク分割） */
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+/** xlsx等のバイナリをbase64で読む。FileReaderではなくBlob.arrayBuffer()を使う（セラーCSVのfile.text()と同系統で確実） */
+async function fileToBase64(file: File): Promise<string> {
+  const buf = await file.arrayBuffer();
+  return bytesToBase64(new Uint8Array(buf));
 }
 
 export function UnitAdImport({ salesUnitId, storedCount }: { salesUnitId: string; storedCount: number }) {
+  const router = useRouter();
   const [fileName, setFileName] = useState("");
   const [b64, setB64] = useState("");
   const [preview, setPreview] = useState<AdImportPreview | null>(null);
@@ -76,6 +81,7 @@ export function UnitAdImport({ salesUnitId, storedCount }: { salesUnitId: string
         const res = await commitAdImport(salesUnitId, b64, [...checked], date, remember);
         setResult(res);
         setPreview(null);
+        router.refresh(); // サーバー描画の日次テーブル/週次断面を即時反映
       } catch (err) {
         setError(err instanceof Error ? err.message : "取り込みに失敗しました。");
       }

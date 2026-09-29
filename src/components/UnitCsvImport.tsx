@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   previewUnitCsvImport,
   commitUnitCsvImport,
@@ -11,6 +12,7 @@ import {
 const yen = (n: number) => "¥" + n.toLocaleString("ja-JP");
 
 export function UnitCsvImport({ salesUnitId, storedCount }: { salesUnitId: string; storedCount: number }) {
+  const router = useRouter();
   const [fileName, setFileName] = useState("");
   const [csvText, setCsvText] = useState("");
   const [preview, setPreview] = useState<UnitCsvPreview | null>(null);
@@ -58,6 +60,7 @@ export function UnitCsvImport({ salesUnitId, storedCount }: { salesUnitId: strin
         const res = await commitUnitCsvImport(salesUnitId, csvText, [...checked], remember);
         setResult(res);
         setPreview(null);
+        router.refresh(); // サーバー描画の日次テーブル/週次断面を即時反映
       } catch (err) {
         setError(err instanceof Error ? err.message : "取り込みに失敗しました。");
       }
