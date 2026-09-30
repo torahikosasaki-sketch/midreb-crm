@@ -70,11 +70,11 @@ export function parseCsv(text: string): string[][] {
   return rows.filter((r) => !(r.length === 1 && r[0].trim() === ""));
 }
 
-/** "1,234"・"¥1,234"・"12.5%" などを数値へ。空/非数値は null */
+/** "1,234"・"¥1,234"・"16,844円"・"12.5%" などを数値へ。数字・小数点・符号以外を除去。空/非数値は null */
 export function normalizeNumber(raw: string | undefined): number | null {
   if (raw == null) return null;
-  const cleaned = raw.replace(/[¥,%\s"]/g, "").replace(/,/g, "").trim();
-  if (cleaned === "") return null;
+  const cleaned = String(raw).replace(/[^0-9.\-]/g, "");
+  if (cleaned === "" || cleaned === "-" || cleaned === ".") return null;
   const n = Number(cleaned);
   return Number.isFinite(n) ? Math.round(n) : null;
 }

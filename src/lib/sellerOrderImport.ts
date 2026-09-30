@@ -124,6 +124,99 @@ function dateRangeOf(dates: string[]): { min: string; max: string } | null {
   return { min: s[0], max: s[s.length - 1] };
 }
 
+// ── 商品パフォーマンス(product_list)形式 ──────────────────────────────
+// TikTok Seller Centerの「商品」分析エクスポート。ヘッダーが複数行下（商品名/商品ID）、
+// 1行=1商品の期間集計（GMV・商品の販売数・注文など）。動画/ライブ別GMV列も持つ（当面は未使用）。
+// 日付は先頭行の範囲（例「分析の日付: 03/04/2026~30/04/2026」）の開始日(DD/MM/YYYY)を採用。
+
+/** 期間集計1商品分（注文数は直接値） */
+type ProductRow = { skuId: string; productName: string; date: string; qty: number; amount: number; orderCount: number };
+
+/** ヘッダー行（商品名/商品ID を含む行）の位置。見つからなければ -1 */
+function findProductHeaderRow(rows: string[][]): number {
+  const limit = Math.min(rows.length, 12);
+  for (let i = 0; i < limit; i++) {
+    const r = rows[i].map((c) => c.trim());
+    if (r.includes("商品名") && r.includes("商品ID")) return i;
+  }
+  return -1;
+}
+
+/** このCSVが商品パフォーマンス(product_list)形式か */
+export function isProductListFormat(rows: string[][]): boolean {
+  const h = findProductHeaderRow(rows);
+  if (h < 0) return false;
+  const header = rows[h].map((c) => c.trim());
+  return header.includes("GMV") && header.includes("商品の販売数");
+}
+
+/** ヘッダー以前の行から範囲開始日(DD/MM/YYYY)を拾う */
+function detectProductDate(rows: string[][], headerIdx: number): string | null {
+  for (let i = 0; i <= headerIdx; i++) {
+    for (const c of rows[i] ?? []) {
+      const m = String(c).match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      if (m) {
+        const d = +m[1], mo = +m[2], y = +m[3];
+        if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) return `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      }
+    }
+  }
+  return null;
+}
+
+function firstIndexOf(header: string[], names: string[]): number {
+  for (const n of names) {
+    const i = header.indexOf(n);
+    if (i >= 0) return i;
+  }
+  return -1;
+}
+
+export type ProductListParse = { rows: ProductRow[]; warnings: string[]; date: string | null };
+
+/** product_list を1行=1商品に正規化。DBには触れない。 */
+export function parseProductListRows(csvText: string): ProductListParse {
+  const rows = parseCsv(csvText);
+  const warnings: string[] = [];
+  const hIdx = findProductHeaderRow(rows);
+  if (hIdx < 0) return { rows: [], warnings: ["商品パフォーマンスCSVのヘッダー（商品名/商品ID）が見つかりません。"], date: null };
+  const header = rows[hIdx].map((c) => c.trim());
+
+  const prodCol = header.indexOf("商品名");
+  const skuCol = header.indexOf("商品ID");
+  const amountCol = header.indexOf("GMV"); // 先頭の「GMV」＝合計GMV（売上金額）
+  const qtyCol = header.indexOf("商品の販売数"); // 先頭＝合計の販売数
+  const orderCol = firstIndexOf(header, ["注文", "販売", "推定カスタマー数", "注文カスタマー数"]); // 注文数
+
+  const missing: string[] = [];
+  if (prodCol < 0) missing.push("商品名");
+  if (amountCol < 0) missing.push("GMV");
+  if (qtyCol < 0) missing.push("商品の販売数");
+  if (missing.length) return { rows: [], warnings: [`必要な列が見つかりません: ${missing.join(", ")}`], date: null };
+
+  const date = detectProductDate(rows, hIdx);
+  if (!date) warnings.push("期間（日付）が読み取れませんでした。");
+
+  const out: ProductRow[] = [];
+  for (let r = hIdx + 1; r < rows.length; r++) {
+    const cells = rows[r];
+    if (!cells) continue;
+    const productName = (cells[prodCol] ?? "").trim();
+    const skuId = skuCol >= 0 ? (cells[skuCol] ?? "").trim() : "";
+    if (!productName && !skuId) continue; // 空行
+    if (!date) continue;
+    out.push({
+      skuId,
+      productName,
+      date,
+      qty: normalizeNumber(cells[qtyCol]) ?? 0,
+      amount: normalizeNumber(cells[amountCol]) ?? 0,
+      orderCount: orderCol >= 0 ? (normalizeNumber(cells[orderCol]) ?? 0) : 0,
+    });
+  }
+  return { rows: out, warnings, date };
+}
+
 // ── 商品名キーの集約（グローバル取込UI用） ─────────────────────────
 
 export type AggregatedRow = { productKey: string; reportDate: string; qty: number; amount: number; orderCount: number };
@@ -137,8 +230,28 @@ export type SellerAggResult = {
   dateRange: { min: string; max: string } | null;
 };
 
-/** 商品名 × 日付 で集約する。 */
+/** 商品名 × 日付 で集約する。注文明細／商品パフォーマンス(product_list) の両形式を自動判別。 */
 export function aggregateSellerOrders(csvText: string): SellerAggResult {
+  if (isProductListFormat(parseCsv(csvText))) {
+    const pl = parseProductListRows(csvText);
+    const map = new Map<string, { productKey: string; date: string; qty: number; amount: number; orderCount: number }>();
+    for (const row of pl.rows) {
+      const key = `${row.productName} ${row.date}`;
+      let b = map.get(key);
+      if (!b) { b = { productKey: row.productName, date: row.date, qty: 0, amount: 0, orderCount: 0 }; map.set(key, b); }
+      b.qty += row.qty; b.amount += row.amount; b.orderCount += row.orderCount;
+    }
+    const perDay: AggregatedRow[] = [...map.values()].map((b) => ({ productKey: b.productKey, reportDate: b.date, qty: b.qty, amount: b.amount, orderCount: b.orderCount }));
+    const pmap = new Map<string, ProductSummary>();
+    for (const d of perDay) {
+      let x = pmap.get(d.productKey);
+      if (!x) { x = { productKey: d.productKey, qty: 0, amount: 0, orderCount: 0, days: 0 }; pmap.set(d.productKey, x); }
+      x.qty += d.qty; x.amount += d.amount; x.orderCount += d.orderCount; x.days += 1;
+    }
+    const products = [...pmap.values()].sort((a, b) => b.amount - a.amount);
+    return { perDay, products, warnings: pl.warnings, totalRows: pl.rows.length, orderRows: pl.rows.length, dateRange: pl.date ? { min: pl.date, max: pl.date } : null };
+  }
+
   const p = parseSellerOrderRows(csvText);
   const map = new Map<string, { productKey: string; date: string; qty: number; amount: number; orders: Set<string> }>();
   for (const row of p.rows) {
@@ -173,8 +286,31 @@ export type SellerSkuAggResult = {
   dateRange: { min: string; max: string } | null;
 };
 
-/** SKU ID × 日付 で集約する。SKU IDが空の行は productName をキーに代用する。 */
+/** SKU ID × 日付 で集約する。SKU IDが空の行は productName をキーに代用する。
+ *  注文明細(注文詳細)／商品パフォーマンス(product_list) の両形式を自動判別。 */
 export function aggregateSellerOrdersBySku(csvText: string): SellerSkuAggResult {
+  // 商品パフォーマンス(product_list)形式は1行=1商品の期間集計（注文数は直接値）
+  if (isProductListFormat(parseCsv(csvText))) {
+    const pl = parseProductListRows(csvText);
+    const map = new Map<string, SkuDayRow & { productName: string }>();
+    for (const row of pl.rows) {
+      const skuId = row.skuId || `name:${row.productName}`;
+      const key = `${skuId} ${row.date}`;
+      let b = map.get(key);
+      if (!b) { b = { skuId, reportDate: row.date, qty: 0, amount: 0, orderCount: 0, productName: row.productName }; map.set(key, b); }
+      b.qty += row.qty; b.amount += row.amount; b.orderCount += row.orderCount;
+    }
+    const perSkuDay: SkuDayRow[] = [...map.values()].map(({ productName, ...d }) => { void productName; return d; });
+    const smap = new Map<string, SkuSummary>();
+    for (const b of map.values()) {
+      let x = smap.get(b.skuId);
+      if (!x) { x = { skuId: b.skuId, productName: b.productName, qty: 0, amount: 0, orderCount: 0, days: 0 }; smap.set(b.skuId, x); }
+      x.qty += b.qty; x.amount += b.amount; x.orderCount += b.orderCount; x.days += 1;
+    }
+    const skus = [...smap.values()].sort((a, b) => b.amount - a.amount);
+    return { skus, perSkuDay, warnings: pl.warnings, totalRows: pl.rows.length, orderRows: pl.rows.length, dateRange: pl.date ? { min: pl.date, max: pl.date } : null };
+  }
+
   const p = parseSellerOrderRows(csvText);
   const keyOf = (r: ParsedOrderRow) => r.skuId || `name:${r.productName}`;
 

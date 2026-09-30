@@ -11,6 +11,20 @@ import {
 
 const yen = (n: number) => "¥" + n.toLocaleString("ja-JP");
 
+/** CSVを文字コード自動判定で読む（UTF-8で文字化け＝置換文字が出たらShift-JISで再デコード） */
+async function readTextAuto(file: File): Promise<string> {
+  const buf = await file.arrayBuffer();
+  let text = new TextDecoder("utf-8").decode(buf);
+  if (text.includes("�")) {
+    try {
+      text = new TextDecoder("shift_jis").decode(buf);
+    } catch {
+      /* Shift-JIS未対応環境ならUTF-8のまま */
+    }
+  }
+  return text;
+}
+
 export function UnitCsvImport({ salesUnitId, storedCount }: { salesUnitId: string; storedCount: number }) {
   const router = useRouter();
   const [fileName, setFileName] = useState("");
@@ -29,7 +43,7 @@ export function UnitCsvImport({ salesUnitId, storedCount }: { salesUnitId: strin
     const file = e.target.files?.[0];
     if (!file) return;
     setFileName(file.name);
-    const text = await file.text();
+    const text = await readTextAuto(file);
     setCsvText(text);
     startTransition(async () => {
       try {
