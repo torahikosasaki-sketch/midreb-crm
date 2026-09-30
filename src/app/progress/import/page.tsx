@@ -122,7 +122,7 @@ function SellerImportSection() {
       </div>
       <p className="text-xs text-slate-500 mb-3">
         全商品混在のCSV（注文明細／商品パフォーマンスどちらも可・文字コード自動判定）を1回選ぶと、SKUごとに各販売単位へ振り分けて
-        <strong> 売上個数・売上金額・注文数 </strong>を反映します。記憶済みSKUは自動割当、未登録のみ選択してください。（動画/ライブ実績は変更しません。同一日付は上書き）
+        <strong> 売上個数・売上金額・注文数</strong>、および<strong> 動画/ライブの 投稿数・回数・販売・GMV（セラー経由）</strong>を反映します（後者は商品パフォーマンスCSVのみ。注文明細CSVでは変更しません）。記憶済みSKUは自動割当、未登録のみ選択してください。同一日付は上書きです。
       </p>
       <input type="file" accept=".csv,text/csv" onChange={onFile} disabled={pending} className="text-sm" />
       {fileName && <span className="ml-2 text-xs text-slate-500">{fileName}</span>}
@@ -162,6 +162,8 @@ function SellerImportSection() {
                   <th className="py-2 px-3 font-medium text-right">売上個数</th>
                   <th className="py-2 px-3 font-medium text-right">売上金額</th>
                   <th className="py-2 px-3 font-medium text-right">注文数</th>
+                  <th className="py-2 px-3 font-medium text-right">動画GMV</th>
+                  <th className="py-2 px-3 font-medium text-right">ライブGMV</th>
                   <th className="py-2 px-3 font-medium">割り当てる販売単位</th>
                 </tr>
               </thead>
@@ -175,6 +177,8 @@ function SellerImportSection() {
                     <td className="py-1.5 px-3 text-right tabular-nums">{r.qty.toLocaleString("ja-JP")}</td>
                     <td className="py-1.5 px-3 text-right tabular-nums">{yen(r.amount)}</td>
                     <td className="py-1.5 px-3 text-right tabular-nums">{r.orderCount.toLocaleString("ja-JP")}</td>
+                    <td className="py-1.5 px-3 text-right tabular-nums text-slate-500">{r.videoGmv ? yen(r.videoGmv) : "—"}</td>
+                    <td className="py-1.5 px-3 text-right tabular-nums text-slate-500">{r.liveGmv ? yen(r.liveGmv) : "—"}</td>
                     <td className="py-1.5 px-3"><UnitSelect value={assign[r.skuId] ?? ""} units={preview.units} matchedBy={r.matchedBy} onChange={(v) => setAssign((p) => ({ ...p, [r.skuId]: v }))} /></td>
                   </tr>
                 ))}

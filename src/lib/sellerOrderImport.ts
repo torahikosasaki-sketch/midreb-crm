@@ -129,8 +129,31 @@ function dateRangeOf(dates: string[]): { min: string; max: string } | null {
 // 1行=1商品の期間集計（GMV・商品の販売数・注文など）。動画/ライブ別GMV列も持つ（当面は未使用）。
 // 日付は先頭行の範囲（例「分析の日付: 03/04/2026~30/04/2026」）の開始日(DD/MM/YYYY)を採用。
 
-/** 期間集計1商品分（注文数は直接値） */
-type ProductRow = { skuId: string; productName: string; date: string; qty: number; amount: number; orderCount: number };
+/** 期間集計1商品分（注文数は直接値）。channel は セラー経由の 動画/ライブ 実績 */
+type ProductRow = {
+  skuId: string;
+  productName: string;
+  date: string;
+  qty: number;
+  amount: number;
+  orderCount: number;
+  videoPosts: number; // セラー動画「新しい動画数」
+  liveCount: number; // セラーLIVE「新規LIVE数」
+  videoSales: number; // セラー動画「商品の販売数」
+  liveSales: number; // セラーLIVE「商品の販売数」
+  videoGmv: number; // セラー動画「GMV」
+  liveGmv: number; // セラーLIVE「GMV」
+};
+
+/** 日次実績へ書き込む channel 値（product_list のときのみ設定される） */
+export type ChannelValues = {
+  videoPosts: number;
+  liveCount: number;
+  videoSales: number;
+  liveSales: number;
+  videoGmv: number;
+  liveGmv: number;
+};
 
 /** ヘッダー行（商品名/商品ID を含む行）の位置。見つからなければ -1 */
 function findProductHeaderRow(rows: string[][]): number {
@@ -182,11 +205,26 @@ export function parseProductListRows(csvText: string): ProductListParse {
   if (hIdx < 0) return { rows: [], warnings: ["商品パフォーマンスCSVのヘッダー（商品名/商品ID）が見つかりません。"], date: null };
   const header = rows[hIdx].map((c) => c.trim());
 
+  // グループ行（ヘッダーの1つ上、例: すべて/セラーLIVE/セラー動画/…）でチャネル列を特定
+  const groupRow = hIdx >= 1 ? rows[hIdx - 1].map((c) => c.trim()) : [];
+  const colInGroup = (group: string, name: string): number => {
+    for (let i = 0; i < header.length; i++) if (header[i] === name && (groupRow[i] ?? "") === group) return i;
+    return -1;
+  };
+
   const prodCol = header.indexOf("商品名");
   const skuCol = header.indexOf("商品ID");
-  const amountCol = header.indexOf("GMV"); // 先頭の「GMV」＝合計GMV（売上金額）
-  const qtyCol = header.indexOf("商品の販売数"); // 先頭＝合計の販売数
-  const orderCol = firstIndexOf(header, ["注文", "販売", "推定カスタマー数", "注文カスタマー数"]); // 注文数
+  // 合計（すべて）セクション
+  const amountCol = colInGroup("すべて", "GMV") >= 0 ? colInGroup("すべて", "GMV") : header.indexOf("GMV"); // 合計GMV（売上金額）
+  const qtyCol = colInGroup("すべて", "商品の販売数") >= 0 ? colInGroup("すべて", "商品の販売数") : header.indexOf("商品の販売数"); // 合計の販売数
+  const orderCol = colInGroup("すべて", "注文") >= 0 ? colInGroup("すべて", "注文") : firstIndexOf(header, ["注文", "販売", "推定カスタマー数", "注文カスタマー数"]); // 注文数
+  // セラー経由の 動画/ライブ セクション
+  const vGmvCol = colInGroup("セラー動画", "GMV");
+  const lGmvCol = colInGroup("セラーLIVE", "GMV");
+  const vSalesCol = colInGroup("セラー動画", "商品の販売数");
+  const lSalesCol = colInGroup("セラーLIVE", "商品の販売数");
+  const vPostsCol = colInGroup("セラー動画", "新しい動画数");
+  const lCountCol = colInGroup("セラーLIVE", "新規LIVE数");
 
   const missing: string[] = [];
   if (prodCol < 0) missing.push("商品名");
@@ -197,6 +235,7 @@ export function parseProductListRows(csvText: string): ProductListParse {
   const date = detectProductDate(rows, hIdx);
   if (!date) warnings.push("期間（日付）が読み取れませんでした。");
 
+  const num = (cells: string[], i: number): number => (i >= 0 ? (normalizeNumber(cells[i]) ?? 0) : 0);
   const out: ProductRow[] = [];
   for (let r = hIdx + 1; r < rows.length; r++) {
     const cells = rows[r];
@@ -209,9 +248,15 @@ export function parseProductListRows(csvText: string): ProductListParse {
       skuId,
       productName,
       date,
-      qty: normalizeNumber(cells[qtyCol]) ?? 0,
-      amount: normalizeNumber(cells[amountCol]) ?? 0,
-      orderCount: orderCol >= 0 ? (normalizeNumber(cells[orderCol]) ?? 0) : 0,
+      qty: num(cells, qtyCol),
+      amount: num(cells, amountCol),
+      orderCount: num(cells, orderCol),
+      videoPosts: num(cells, vPostsCol),
+      liveCount: num(cells, lCountCol),
+      videoSales: num(cells, vSalesCol),
+      liveSales: num(cells, lSalesCol),
+      videoGmv: num(cells, vGmvCol),
+      liveGmv: num(cells, lGmvCol),
     });
   }
   return { rows: out, warnings, date };
@@ -275,8 +320,8 @@ export function aggregateSellerOrders(csvText: string): SellerAggResult {
 
 // ── SKU IDキーの集約（商品ページ内取込・記憶用） ──────────────────
 
-export type SkuSummary = { skuId: string; productName: string; qty: number; amount: number; orderCount: number; days: number };
-export type SkuDayRow = { skuId: string; reportDate: string; qty: number; amount: number; orderCount: number };
+export type SkuSummary = { skuId: string; productName: string; qty: number; amount: number; orderCount: number; days: number; channel?: ChannelValues };
+export type SkuDayRow = { skuId: string; reportDate: string; qty: number; amount: number; orderCount: number; channel?: ChannelValues };
 export type SellerSkuAggResult = {
   skus: SkuSummary[];
   perSkuDay: SkuDayRow[];
@@ -292,20 +337,27 @@ export function aggregateSellerOrdersBySku(csvText: string): SellerSkuAggResult 
   // 商品パフォーマンス(product_list)形式は1行=1商品の期間集計（注文数は直接値）
   if (isProductListFormat(parseCsv(csvText))) {
     const pl = parseProductListRows(csvText);
-    const map = new Map<string, SkuDayRow & { productName: string }>();
+    const zeroCh = (): ChannelValues => ({ videoPosts: 0, liveCount: 0, videoSales: 0, liveSales: 0, videoGmv: 0, liveGmv: 0 });
+    const map = new Map<string, SkuDayRow & { productName: string; channel: ChannelValues }>();
     for (const row of pl.rows) {
       const skuId = row.skuId || `name:${row.productName}`;
       const key = `${skuId} ${row.date}`;
       let b = map.get(key);
-      if (!b) { b = { skuId, reportDate: row.date, qty: 0, amount: 0, orderCount: 0, productName: row.productName }; map.set(key, b); }
+      if (!b) { b = { skuId, reportDate: row.date, qty: 0, amount: 0, orderCount: 0, productName: row.productName, channel: zeroCh() }; map.set(key, b); }
       b.qty += row.qty; b.amount += row.amount; b.orderCount += row.orderCount;
+      b.channel.videoPosts += row.videoPosts; b.channel.liveCount += row.liveCount;
+      b.channel.videoSales += row.videoSales; b.channel.liveSales += row.liveSales;
+      b.channel.videoGmv += row.videoGmv; b.channel.liveGmv += row.liveGmv;
     }
     const perSkuDay: SkuDayRow[] = [...map.values()].map(({ productName, ...d }) => { void productName; return d; });
     const smap = new Map<string, SkuSummary>();
     for (const b of map.values()) {
       let x = smap.get(b.skuId);
-      if (!x) { x = { skuId: b.skuId, productName: b.productName, qty: 0, amount: 0, orderCount: 0, days: 0 }; smap.set(b.skuId, x); }
+      if (!x) { x = { skuId: b.skuId, productName: b.productName, qty: 0, amount: 0, orderCount: 0, days: 0, channel: zeroCh() }; smap.set(b.skuId, x); }
       x.qty += b.qty; x.amount += b.amount; x.orderCount += b.orderCount; x.days += 1;
+      x.channel!.videoPosts += b.channel.videoPosts; x.channel!.liveCount += b.channel.liveCount;
+      x.channel!.videoSales += b.channel.videoSales; x.channel!.liveSales += b.channel.liveSales;
+      x.channel!.videoGmv += b.channel.videoGmv; x.channel!.liveGmv += b.channel.liveGmv;
     }
     const skus = [...smap.values()].sort((a, b) => b.amount - a.amount);
     return { skus, perSkuDay, warnings: pl.warnings, totalRows: pl.rows.length, orderRows: pl.rows.length, dateRange: pl.date ? { min: pl.date, max: pl.date } : null };

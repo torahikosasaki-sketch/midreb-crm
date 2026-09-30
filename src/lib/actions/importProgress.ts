@@ -7,7 +7,15 @@ import {
   aggregateSellerOrdersBySku,
   type ProductSummary,
   type SkuSummary,
+  type ChannelValues,
 } from "@/lib/sellerOrderImport";
+
+const zeroChannel = (): ChannelValues => ({ videoPosts: 0, liveCount: 0, videoSales: 0, liveSales: 0, videoGmv: 0, liveGmv: 0 });
+function addChannel(acc: ChannelValues, c: ChannelValues) {
+  acc.videoPosts += c.videoPosts; acc.liveCount += c.liveCount;
+  acc.videoSales += c.videoSales; acc.liveSales += c.liveSales;
+  acc.videoGmv += c.videoGmv; acc.liveGmv += c.liveGmv;
+}
 import { parseAdCampaigns, type AdCampaign } from "@/lib/adCampaignImport";
 
 const MAX_PRODUCTS = 2000;
@@ -205,19 +213,21 @@ export async function commitUnitCsvImport(
   const agg = aggregateSellerOrdersBySku(csvText);
 
   // 選択SKUを日付で集約
-  const byDay = new Map<string, { qty: number; amount: number; orders: number }>();
+  const byDay = new Map<string, { qty: number; amount: number; orders: number; ch: ChannelValues; hasCh: boolean }>();
   for (const row of agg.perSkuDay) {
     if (!wanted.has(row.skuId)) continue;
     let b = byDay.get(row.reportDate);
-    if (!b) { b = { qty: 0, amount: 0, orders: 0 }; byDay.set(row.reportDate, b); }
+    if (!b) { b = { qty: 0, amount: 0, orders: 0, ch: zeroChannel(), hasCh: false }; byDay.set(row.reportDate, b); }
     b.qty += row.qty; b.amount += row.amount; b.orders += row.orderCount;
+    if (row.channel) { b.hasCh = true; addChannel(b.ch, row.channel); }
   }
 
   let created = 0;
   let updated = 0;
   for (const [date, b] of byDay) {
     const reportDate = toUtcMidnight(date);
-    const data = { shippingQty: b.qty, shippingAmount: b.amount, orderCount: b.orders };
+    const data: Record<string, number> = { shippingQty: b.qty, shippingAmount: b.amount, orderCount: b.orders };
+    if (b.hasCh) Object.assign(data, b.ch);
     const existing = await prisma.dailyReport.findUnique({
       where: { salesUnitId_reportDate: { salesUnitId, reportDate } },
       select: { id: true },
@@ -379,6 +389,8 @@ export type GlobalSkuRow = {
   amount: number;
   orderCount: number;
   days: number;
+  videoGmv: number;
+  liveGmv: number;
   suggestedUnitId: string | null;
   matchedBy: "remembered" | "suggest" | null;
 };
@@ -409,7 +421,7 @@ export async function previewGlobalSkuImport(csvText: string): Promise<GlobalSku
       const sug = suggestUnit(s.productName, units);
       if (sug) { suggestedUnitId = sug.id; matchedBy = "suggest"; }
     }
-    return { skuId: s.skuId, productName: s.productName, qty: s.qty, amount: s.amount, orderCount: s.orderCount, days: s.days, suggestedUnitId, matchedBy };
+    return { skuId: s.skuId, productName: s.productName, qty: s.qty, amount: s.amount, orderCount: s.orderCount, days: s.days, videoGmv: s.channel?.videoGmv ?? 0, liveGmv: s.channel?.liveGmv ?? 0, suggestedUnitId, matchedBy };
   });
 
   return { rows, units, warnings: agg.warnings, orderRows: agg.orderRows, dateRange: agg.dateRange };
@@ -422,7 +434,7 @@ export async function commitGlobalSkuImport(
   remember: boolean
 ): Promise<GlobalImportResult> {
   const agg = aggregateSellerOrdersBySku(csvText);
-  const byUnitDay = new Map<string, { unitId: string; date: string; qty: number; amount: number; orders: number }>();
+  const byUnitDay = new Map<string, { unitId: string; date: string; qty: number; amount: number; orders: number; ch: ChannelValues; hasCh: boolean }>();
   const unitToSkus = new Map<string, Set<string>>();
   const mapped = new Set<string>();
   const all = new Set<string>();
@@ -436,15 +448,17 @@ export async function commitGlobalSkuImport(
     unitToSkus.get(unitId)!.add(row.skuId);
     const key = `${unitId} ${row.reportDate}`;
     let b = byUnitDay.get(key);
-    if (!b) { b = { unitId, date: row.reportDate, qty: 0, amount: 0, orders: 0 }; byUnitDay.set(key, b); }
+    if (!b) { b = { unitId, date: row.reportDate, qty: 0, amount: 0, orders: 0, ch: zeroChannel(), hasCh: false }; byUnitDay.set(key, b); }
     b.qty += row.qty; b.amount += row.amount; b.orders += row.orderCount;
+    if (row.channel) { b.hasCh = true; addChannel(b.ch, row.channel); }
   }
 
   let created = 0, updated = 0;
   const touched = new Set<string>();
   for (const b of byUnitDay.values()) {
     const reportDate = toUtcMidnight(b.date);
-    const data = { shippingQty: b.qty, shippingAmount: b.amount, orderCount: b.orders };
+    const data: Record<string, number> = { shippingQty: b.qty, shippingAmount: b.amount, orderCount: b.orders };
+    if (b.hasCh) Object.assign(data, b.ch); // 動画/ライブ 投稿数・回数・販売・GMV（product_listのみ）
     const existing = await prisma.dailyReport.findUnique({ where: { salesUnitId_reportDate: { salesUnitId: b.unitId, reportDate } }, select: { id: true } });
     if (existing) { await prisma.dailyReport.update({ where: { id: existing.id }, data }); updated++; }
     else { await prisma.dailyReport.create({ data: { salesUnitId: b.unitId, reportDate, ...data } }); created++; }
