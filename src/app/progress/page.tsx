@@ -56,18 +56,21 @@ export default async function ProgressPage() {
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* ツールバー */}
-      <div className="flex items-center justify-between px-4 pt-3 pb-2">
-        <h1 className="text-lg font-bold">案件進捗管理</h1>
+      <div className="flex items-center justify-between px-5 pt-4 pb-1">
+        <div className="flex items-center gap-2.5">
+          <div className="h-9 w-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-lg">📈</div>
+          <h1 className="text-xl font-bold tracking-tight text-slate-900">案件進捗管理</h1>
+        </div>
         <Link
           href="/progress/import"
-          className="rounded-md bg-emerald-600 px-3.5 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
+          className="rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm shadow-emerald-600/20 hover:bg-emerald-700 transition-colors"
         >
           ⬆ CSV一括取込
         </Link>
       </div>
 
       {/* サマリKPI */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-slate-200 border-y border-slate-200">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 px-5 py-3">
         <Kpi label="顧客（メーカー）" value={`${rows.length} 社`} accent />
         <Kpi label="稼働中の販売単位" value={`${totalActive} 件`} />
         <Kpi label="直近週GMV（全社）" value={formatYen(totalLatestGmv)} />
@@ -86,7 +89,7 @@ export default async function ProgressPage() {
           <Link
             key={a.id}
             href={`/progress/accounts/${a.id}`}
-            className="flex items-center gap-4 rounded-lg border border-slate-200 bg-white px-4 py-3 hover:border-emerald-300 hover:shadow-sm transition-all"
+            className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md"
           >
             <div className="flex items-center gap-3 w-64 shrink-0 min-w-0">
               {a.logoUrl ? (
@@ -185,9 +188,9 @@ export default async function ProgressPage() {
 
 function Kpi({ label, value, accent, danger }: { label: string; value: string; accent?: boolean; danger?: boolean }) {
   return (
-    <div className={`px-5 py-3 ${danger ? "bg-rose-50" : accent ? "bg-emerald-50" : "bg-white"}`}>
-      <div className={`text-xs ${danger ? "text-rose-500" : "text-slate-500"}`}>{label}</div>
-      <div className={`text-lg font-bold tabular-nums ${danger ? "text-rose-700" : accent ? "text-emerald-700" : "text-slate-800"}`}>{value}</div>
+    <div className={`rounded-xl border p-3.5 shadow-sm ${danger ? "border-rose-200 bg-rose-50" : accent ? "border-emerald-200 bg-gradient-to-br from-emerald-50 to-white" : "border-slate-200 bg-white"}`}>
+      <div className={`text-[11px] font-medium ${danger ? "text-rose-500" : accent ? "text-emerald-700" : "text-slate-500"}`}>{label}</div>
+      <div className={`mt-1 text-xl font-bold tracking-tight tabular-nums ${danger ? "text-rose-700" : accent ? "text-emerald-700" : "text-slate-900"}`}>{value}</div>
     </div>
   );
 }

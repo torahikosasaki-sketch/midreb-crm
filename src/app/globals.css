@@ -17,9 +17,40 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), -apple-system, "Hiragino Kaku Gothic ProN",
     "Yu Gothic UI", Meiryo, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
-/* カンバン横スクロール用の薄いスクロールバー */
+/* テキスト選択色（ブランドのemerald寄り） */
+::selection {
+  background: rgba(16, 185, 129, 0.18);
+}
+
+/* 全体的に細く上品なスクロールバー */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+  background-clip: content-box;
+}
+
+/* カンバン横スクロール用（後方互換） */
 .thin-scroll::-webkit-scrollbar {
   height: 8px;
   width: 8px;

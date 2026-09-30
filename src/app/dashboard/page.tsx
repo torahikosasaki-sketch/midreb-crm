@@ -109,9 +109,12 @@ export default async function DashboardPage() {
     .slice(0, 6);
 
   return (
-    <div className="p-6 max-w-6xl">
-      <div className="flex items-baseline justify-between mb-5">
-        <h1 className="text-xl font-bold">ダッシュボード</h1>
+    <div className="p-6 md:p-8 max-w-6xl mx-auto">
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-xl">📊</div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">ダッシュボード</h1>
+        </div>
         <span className="text-xs text-slate-400">MRR＝契約後の月額経常／パイプライン＝締結前の加重ACV</span>
       </div>
 
@@ -210,14 +213,14 @@ function Kpi({
 }) {
   return (
     <div
-      className={`rounded-lg border p-3 ${
-        danger ? "border-rose-200 bg-rose-50" : accent ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-white"
+      className={`rounded-xl border p-3.5 shadow-sm transition-shadow hover:shadow ${
+        danger ? "border-rose-200 bg-rose-50" : accent ? "border-emerald-200 bg-gradient-to-br from-emerald-50 to-white" : "border-slate-200 bg-white"
       }`}
     >
-      <div className={`text-xs ${danger ? "text-rose-500" : "text-slate-500"}`}>{label}</div>
+      <div className={`text-[11px] font-medium ${danger ? "text-rose-500" : accent ? "text-emerald-700" : "text-slate-500"}`}>{label}</div>
       <div
-        className={`text-lg font-bold tabular-nums ${
-          danger ? "text-rose-700" : accent ? "text-emerald-700" : "text-slate-800"
+        className={`mt-1 text-xl font-bold tracking-tight tabular-nums ${
+          danger ? "text-rose-700" : accent ? "text-emerald-700" : "text-slate-900"
         }`}
       >
         {value}
@@ -238,7 +241,7 @@ function Card({
   linkLabel?: string;
 }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4">
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-sm font-semibold text-slate-700">{title}</h2>
         {href && linkLabel && (

@@ -21,7 +21,7 @@ export function SubmitButton({
       type="submit"
       disabled={pending}
       aria-busy={pending}
-      className={`inline-flex items-center justify-center gap-1.5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${className}`}
+      className={`inline-flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed ${className}`}
     >
       {pending && (
         <span className="h-3.5 w-3.5 rounded-full border-2 border-current border-t-transparent animate-spin opacity-80" />

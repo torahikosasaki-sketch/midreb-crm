@@ -4,14 +4,25 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 type NavItem = { href: string; label: string; icon: string; match?: string[] };
+type NavGroup = { label: string; items: NavItem[] };
 
-const NAV: NavItem[] = [
-  { href: "/dashboard", label: "ダッシュボード", icon: "grid" },
-  { href: "/leads", label: "リード", icon: "inbox", match: ["/leads"] },
-  { href: "/", label: "商談", icon: "kanban", match: ["/", "/deals"] },
-  { href: "/accounts", label: "顧客", icon: "building" },
-  { href: "/progress", label: "案件進捗管理", icon: "chart" },
-  { href: "/reports", label: "レポート", icon: "report", match: ["/reports"] },
+const GROUPS: NavGroup[] = [
+  {
+    label: "メイン",
+    items: [
+      { href: "/dashboard", label: "ダッシュボード", icon: "grid" },
+      { href: "/leads", label: "リード", icon: "inbox", match: ["/leads"] },
+      { href: "/", label: "商談", icon: "kanban", match: ["/", "/deals"] },
+      { href: "/accounts", label: "顧客", icon: "building" },
+    ],
+  },
+  {
+    label: "分析・管理",
+    items: [
+      { href: "/progress", label: "案件進捗管理", icon: "chart" },
+      { href: "/reports", label: "レポート", icon: "report", match: ["/reports"] },
+    ],
+  },
 ];
 
 function isActive(pathname: string, href: string, match?: string[]): boolean {
@@ -21,59 +32,63 @@ function isActive(pathname: string, href: string, match?: string[]): boolean {
   );
 }
 
+function NavLink({ item, active }: { item: NavItem; active: boolean }) {
+  return (
+    <Link
+      href={item.href}
+      aria-current={active ? "page" : undefined}
+      className={`group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+        active
+          ? "bg-emerald-50 font-semibold text-emerald-700"
+          : "font-medium text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
+      }`}
+    >
+      {active && <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-emerald-600" />}
+      <span className={active ? "text-emerald-600" : "text-slate-400 group-hover:text-slate-500"}>
+        <Icon name={item.icon} />
+      </span>
+      {item.label}
+    </Link>
+  );
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const settingsActive = pathname === "/settings" || pathname.startsWith("/settings/");
 
   return (
-    <aside className="w-56 shrink-0 h-screen bg-white border-r border-slate-200 flex flex-col">
-      <div className="h-14 flex items-center px-5 border-b border-slate-200">
-        <Link href="/dashboard" className="font-bold text-lg tracking-tight">
-          midreb <span className="text-emerald-600">CRM</span>
+    <aside className="w-60 shrink-0 h-screen bg-white border-r border-slate-200/80 flex flex-col">
+      {/* ブランド */}
+      <div className="h-16 flex items-center gap-2.5 px-5">
+        <Link href="/dashboard" className="flex items-center gap-2.5">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white font-bold shadow-sm shadow-emerald-600/20">m</span>
+          <span className="font-bold text-[15px] tracking-tight text-slate-900">
+            midreb <span className="font-semibold text-slate-400">CRM</span>
+          </span>
         </Link>
       </div>
 
-      <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-        {NAV.map((n) => {
-          const active = isActive(pathname, n.href, n.match);
-          return (
-            <Link
-              key={n.href}
-              href={n.href}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                active
-                  ? "bg-emerald-50 text-emerald-700"
-                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-              }`}
-            >
-              <Icon name={n.icon} active={active} />
-              {n.label}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 overflow-y-auto px-3 pb-4 space-y-5">
+        {GROUPS.map((g) => (
+          <div key={g.label} className="space-y-0.5">
+            <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">{g.label}</div>
+            {g.items.map((n) => (
+              <NavLink key={n.href} item={n} active={isActive(pathname, n.href, n.match)} />
+            ))}
+          </div>
+        ))}
       </nav>
 
-      <div className="p-3 border-t border-slate-200">
-        <Link
-          href="/settings"
-          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-            settingsActive
-              ? "bg-emerald-50 text-emerald-700"
-              : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-          }`}
-        >
-          <Icon name="settings" active={settingsActive} />
-          設定
-        </Link>
+      <div className="p-3 border-t border-slate-200/80">
+        <NavLink item={{ href: "/settings", label: "設定", icon: "settings" }} active={settingsActive} />
       </div>
     </aside>
   );
 }
 
-function Icon({ name, active }: { name: string; active: boolean }) {
-  const cls = `h-4 w-4 shrink-0 ${active ? "text-emerald-600" : "text-slate-400"}`;
+function Icon({ name }: { name: string }) {
   const common = {
-    className: cls,
+    className: "h-[18px] w-[18px] shrink-0",
     fill: "none",
     stroke: "currentColor",
     strokeWidth: 1.8,
@@ -134,6 +149,6 @@ function Icon({ name, active }: { name: string; active: boolean }) {
         </svg>
       );
     default:
-      return <span className={cls} />;
+      return <span className="h-[18px] w-[18px]" />;
   }
 }
