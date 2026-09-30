@@ -344,3 +344,206 @@ export async function commitAdImport(
 
   return { created, updated, reportDate: reportDateYmd, campaignsUsed: picked.length, totals, remembered: remember };
 }
+
+// ============================================================================
+// トップページからのグローバル取込（1ファイルで全販売単位へ自動振り分け）。
+// 記憶済み(csvSkuIds / adCampaignIds)は自動で単位に割り当て、未登録分のみ手動選択。
+// ============================================================================
+
+export type GlobalImportResult = {
+  created: number;
+  updated: number;
+  unitsTouched: number;
+  mappedCount: number;
+  skippedCount: number;
+  remembered: boolean;
+  dateRange: { min: string; max: string } | null;
+};
+
+function unitOptions(raw: { id: string; brand: string; productSku: string | null; account: { name: string } | null }[]): UnitOption[] {
+  return raw.map((u) => ({
+    id: u.id,
+    brand: u.brand,
+    productSku: u.productSku,
+    accountName: u.account?.name ?? null,
+    label: `${u.productSku ?? u.brand}${u.account?.name ? `（${u.account.name}）` : ""}`,
+  }));
+}
+
+// ── セラーCSV（実績）：SKU × 販売単位 ─────────────────────────────
+
+export type GlobalSkuRow = {
+  skuId: string;
+  productName: string;
+  qty: number;
+  amount: number;
+  orderCount: number;
+  days: number;
+  suggestedUnitId: string | null;
+  matchedBy: "remembered" | "suggest" | null;
+};
+export type GlobalSkuPreview = {
+  rows: GlobalSkuRow[];
+  units: UnitOption[];
+  warnings: string[];
+  orderRows: number;
+  dateRange: { min: string; max: string } | null;
+};
+
+/** セラーCSVを解析し、SKUごとに（記憶→推定の順で）販売単位を提案。DB非書込。 */
+export async function previewGlobalSkuImport(csvText: string): Promise<GlobalSkuPreview> {
+  const agg = aggregateSellerOrdersBySku(csvText);
+  const raw = await prisma.salesUnit.findMany({
+    select: { id: true, brand: true, productSku: true, csvSkuIds: true, account: { select: { name: true } } },
+    orderBy: [{ status: "asc" }, { createdAt: "asc" }],
+  });
+  const units = unitOptions(raw);
+  const skuToUnit = new Map<string, string>();
+  for (const u of raw) for (const sid of u.csvSkuIds) if (!skuToUnit.has(sid)) skuToUnit.set(sid, u.id);
+
+  const rows: GlobalSkuRow[] = agg.skus.slice(0, MAX_PRODUCTS).map((s) => {
+    const remembered = skuToUnit.get(s.skuId);
+    let suggestedUnitId: string | null = remembered ?? null;
+    let matchedBy: "remembered" | "suggest" | null = remembered ? "remembered" : null;
+    if (!suggestedUnitId) {
+      const sug = suggestUnit(s.productName, units);
+      if (sug) { suggestedUnitId = sug.id; matchedBy = "suggest"; }
+    }
+    return { skuId: s.skuId, productName: s.productName, qty: s.qty, amount: s.amount, orderCount: s.orderCount, days: s.days, suggestedUnitId, matchedBy };
+  });
+
+  return { rows, units, warnings: agg.warnings, orderRows: agg.orderRows, dateRange: agg.dateRange };
+}
+
+/** セラーCSV取込。assignments(skuId→unitId)で (販売単位×日付) に集約しupsert。記憶時はSKUを各単位に追記。 */
+export async function commitGlobalSkuImport(
+  csvText: string,
+  assignments: Record<string, string>,
+  remember: boolean
+): Promise<GlobalImportResult> {
+  const agg = aggregateSellerOrdersBySku(csvText);
+  const byUnitDay = new Map<string, { unitId: string; date: string; qty: number; amount: number; orders: number }>();
+  const unitToSkus = new Map<string, Set<string>>();
+  const mapped = new Set<string>();
+  const all = new Set<string>();
+
+  for (const row of agg.perSkuDay) {
+    all.add(row.skuId);
+    const unitId = assignments[row.skuId];
+    if (!unitId) continue;
+    mapped.add(row.skuId);
+    if (!unitToSkus.has(unitId)) unitToSkus.set(unitId, new Set());
+    unitToSkus.get(unitId)!.add(row.skuId);
+    const key = `${unitId} ${row.reportDate}`;
+    let b = byUnitDay.get(key);
+    if (!b) { b = { unitId, date: row.reportDate, qty: 0, amount: 0, orders: 0 }; byUnitDay.set(key, b); }
+    b.qty += row.qty; b.amount += row.amount; b.orders += row.orderCount;
+  }
+
+  let created = 0, updated = 0;
+  const touched = new Set<string>();
+  for (const b of byUnitDay.values()) {
+    const reportDate = toUtcMidnight(b.date);
+    const data = { shippingQty: b.qty, shippingAmount: b.amount, orderCount: b.orders };
+    const existing = await prisma.dailyReport.findUnique({ where: { salesUnitId_reportDate: { salesUnitId: b.unitId, reportDate } }, select: { id: true } });
+    if (existing) { await prisma.dailyReport.update({ where: { id: existing.id }, data }); updated++; }
+    else { await prisma.dailyReport.create({ data: { salesUnitId: b.unitId, reportDate, ...data } }); created++; }
+    touched.add(b.unitId);
+  }
+
+  if (remember) {
+    for (const [unitId, skuSet] of unitToSkus) {
+      const u = await prisma.salesUnit.findUnique({ where: { id: unitId }, select: { csvSkuIds: true } });
+      const merged = Array.from(new Set([...(u?.csvSkuIds ?? []), ...skuSet]));
+      await prisma.salesUnit.update({ where: { id: unitId }, data: { csvSkuIds: merged } });
+    }
+  }
+
+  revalidatePath("/progress");
+  revalidatePath("/reports/daily");
+  for (const id of touched) { revalidatePath(`/progress/${id}`); revalidatePath(`/reports/daily/${id}`); }
+
+  const dates = [...new Set([...byUnitDay.values()].map((b) => b.date))].sort();
+  return { created, updated, unitsTouched: touched.size, mappedCount: mapped.size, skippedCount: all.size - mapped.size, remembered: remember, dateRange: dates.length ? { min: dates[0], max: dates[dates.length - 1] } : null };
+}
+
+// ── 広告xlsx：キャンペーン × 販売単位 ─────────────────────────────
+
+export type GlobalAdRow = AdCampaign & { suggestedUnitId: string | null; matchedBy: "remembered" | "suggest" | null };
+export type GlobalAdPreview = { rows: GlobalAdRow[]; units: UnitOption[]; warnings: string[]; totalRows: number };
+
+/** 広告xlsxを解析し、キャンペーンごとに（記憶→推定の順で）販売単位を提案。DB非書込。 */
+export async function previewGlobalAdImport(base64: string): Promise<GlobalAdPreview> {
+  const parsed = parseAdCampaigns(base64);
+  const raw = await prisma.salesUnit.findMany({
+    select: { id: true, brand: true, productSku: true, adCampaignIds: true, account: { select: { name: true } } },
+    orderBy: [{ status: "asc" }, { createdAt: "asc" }],
+  });
+  const units = unitOptions(raw);
+  const campToUnit = new Map<string, string>();
+  for (const u of raw) for (const cid of u.adCampaignIds) if (!campToUnit.has(cid)) campToUnit.set(cid, u.id);
+
+  const rows: GlobalAdRow[] = parsed.campaigns.map((c) => {
+    const remembered = campToUnit.get(c.campaignId);
+    let suggestedUnitId: string | null = remembered ?? null;
+    let matchedBy: "remembered" | "suggest" | null = remembered ? "remembered" : null;
+    if (!suggestedUnitId) {
+      const sug = suggestUnit(c.campaignName, units);
+      if (sug) { suggestedUnitId = sug.id; matchedBy = "suggest"; }
+    }
+    return { ...c, suggestedUnitId, matchedBy };
+  });
+  return { rows, units, warnings: parsed.warnings, totalRows: parsed.totalRows };
+}
+
+/** 広告取込。assignments(campaignId→unitId)で単位ごとに合算し、指定日付でupsert。記憶時はキャンペーンを各単位に追記。 */
+export async function commitGlobalAdImport(
+  base64: string,
+  assignments: Record<string, string>,
+  reportDateYmd: string,
+  remember: boolean
+): Promise<GlobalImportResult> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(reportDateYmd)) throw new Error("日付を YYYY-MM-DD で指定してください。");
+  const parsed = parseAdCampaigns(base64);
+  const byUnit = new Map<string, { adSpend: number; dailyBudget: number; orderCount: number; adGmv: number }>();
+  const unitToCamps = new Map<string, Set<string>>();
+  const mapped = new Set<string>();
+  const all = new Set<string>();
+
+  for (const c of parsed.campaigns) {
+    all.add(c.campaignId);
+    const unitId = assignments[c.campaignId];
+    if (!unitId) continue;
+    mapped.add(c.campaignId);
+    if (!unitToCamps.has(unitId)) unitToCamps.set(unitId, new Set());
+    unitToCamps.get(unitId)!.add(c.campaignId);
+    let b = byUnit.get(unitId);
+    if (!b) { b = { adSpend: 0, dailyBudget: 0, orderCount: 0, adGmv: 0 }; byUnit.set(unitId, b); }
+    b.adSpend += c.adSpend; b.dailyBudget += c.dailyBudget; b.orderCount += c.orderCount; b.adGmv += c.adGmv;
+  }
+
+  const reportDate = toUtcMidnight(reportDateYmd);
+  let created = 0, updated = 0;
+  const touched = new Set<string>();
+  for (const [unitId, b] of byUnit) {
+    const data = { adSpend: b.adSpend, dailyBudget: b.dailyBudget, orderCount: b.orderCount, adGmv: b.adGmv };
+    const existing = await prisma.dailyReport.findUnique({ where: { salesUnitId_reportDate: { salesUnitId: unitId, reportDate } }, select: { id: true } });
+    if (existing) { await prisma.dailyReport.update({ where: { id: existing.id }, data }); updated++; }
+    else { await prisma.dailyReport.create({ data: { salesUnitId: unitId, reportDate, ...data } }); created++; }
+    touched.add(unitId);
+  }
+
+  if (remember) {
+    for (const [unitId, set] of unitToCamps) {
+      const u = await prisma.salesUnit.findUnique({ where: { id: unitId }, select: { adCampaignIds: true } });
+      const merged = Array.from(new Set([...(u?.adCampaignIds ?? []), ...set]));
+      await prisma.salesUnit.update({ where: { id: unitId }, data: { adCampaignIds: merged } });
+    }
+  }
+
+  revalidatePath("/progress");
+  revalidatePath("/reports/daily");
+  for (const id of touched) { revalidatePath(`/progress/${id}`); revalidatePath(`/reports/daily/${id}`); }
+
+  return { created, updated, unitsTouched: touched.size, mappedCount: mapped.size, skippedCount: all.size - mapped.size, remembered: remember, dateRange: { min: reportDateYmd, max: reportDateYmd } };
+}

@@ -60,9 +60,9 @@ export default async function ProgressPage() {
         <h1 className="text-lg font-bold">案件進捗管理</h1>
         <Link
           href="/progress/import"
-          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          className="rounded-md bg-emerald-600 px-3.5 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
         >
-          ⬆ CSV取込
+          ⬆ CSV一括取込
         </Link>
       </div>
 
