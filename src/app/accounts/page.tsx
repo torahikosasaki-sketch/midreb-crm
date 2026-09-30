@@ -68,7 +68,7 @@ export default async function AccountsPage() {
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* ポートフォリオKPI帯 */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-px bg-slate-200 border-b border-slate-200">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3 px-5 py-4 border-b border-slate-200">
         <Kpi label="総MRR" value={formatYen(totalMrr)} accent />
         <Kpi label="ARR（年換算）" value={formatYen(totalMrr * 12)} />
         <Kpi label="登録企業" value={`${rows.length} 社`} />
@@ -96,11 +96,11 @@ function Kpi({
   danger?: boolean;
 }) {
   return (
-    <div className={`px-5 py-3 ${danger ? "bg-rose-50" : accent ? "bg-emerald-50" : "bg-white"}`}>
-      <div className={`text-xs ${danger ? "text-rose-500" : "text-slate-500"}`}>{label}</div>
+    <div className={`rounded-xl border p-3.5 shadow-sm ${danger ? "border-rose-200 bg-rose-50" : accent ? "border-emerald-200 bg-gradient-to-br from-emerald-50 to-white" : "border-slate-200 bg-white"}`}>
+      <div className={`text-[11px] font-medium ${danger ? "text-rose-500" : accent ? "text-emerald-700" : "text-slate-500"}`}>{label}</div>
       <div
-        className={`text-lg font-bold tabular-nums ${
-          danger ? "text-rose-700" : accent ? "text-emerald-700" : "text-slate-800"
+        className={`mt-1 text-xl font-bold tracking-tight tabular-nums ${
+          danger ? "text-rose-700" : accent ? "text-emerald-700" : "text-slate-900"
         }`}
       >
         {value}

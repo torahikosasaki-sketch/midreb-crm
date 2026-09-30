@@ -50,12 +50,15 @@ export default async function PipelinePage() {
   });
 
   return (
-    <div className="p-6 max-w-5xl">
-      <div className="flex items-baseline justify-between mb-4">
-        <h1 className="text-xl font-bold">月次パイプライン集計</h1>
+    <div className="p-6 md:p-8 max-w-5xl mx-auto">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-violet-100 text-violet-700 flex items-center justify-center text-xl">📅</div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">月次パイプライン集計</h1>
+        </div>
         <div className="text-sm">
           <span className="text-slate-500">加重ACV合計</span>
-          <span className="ml-2 text-xl font-bold text-emerald-700">{formatYen(grandTotal)}</span>
+          <span className="ml-2 text-xl font-bold text-emerald-700 tabular-nums">{formatYen(grandTotal)}</span>
         </div>
       </div>
       <p className="text-xs text-slate-400 mb-4">

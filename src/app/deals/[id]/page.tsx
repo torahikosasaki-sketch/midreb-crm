@@ -84,7 +84,7 @@ export default async function DealDetailPage({
   const contracted = deal.customerized;
 
   return (
-    <div className="p-6 max-w-4xl">
+    <div className="p-6 md:p-8 max-w-4xl mx-auto">
       <div className="mb-4 flex items-start justify-between">
         <div>
           <Link href="/deals" className="text-sm text-emerald-600 hover:underline">
@@ -92,11 +92,11 @@ export default async function DealDetailPage({
           </Link>
           <div className="flex items-center gap-2 mt-1">
             {deal.accountId ? (
-              <Link href={`/accounts/${deal.accountId}`} className="text-xl font-bold hover:text-emerald-700 hover:underline">
+              <Link href={`/accounts/${deal.accountId}`} className="text-2xl font-bold tracking-tight text-slate-900 hover:text-emerald-700 hover:underline">
                 {deal.account?.name ?? "(顧客未設定)"}
               </Link>
             ) : (
-              <h1 className="text-xl font-bold">(顧客未設定)</h1>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900">(顧客未設定)</h1>
             )}
             <span
               className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${

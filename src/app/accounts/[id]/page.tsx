@@ -91,7 +91,7 @@ export default async function AccountDetailPage({
   const ymd = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "—");
 
   return (
-    <div className="p-6 max-w-4xl">
+    <div className="p-6 md:p-8 max-w-4xl mx-auto">
       <div className="mb-4 flex items-start justify-between">
         <div className="min-w-0">
           <Link href="/accounts" className="text-sm text-emerald-600 hover:underline">
@@ -111,7 +111,7 @@ export default async function AccountDetailPage({
               </div>
             )}
             <div className="min-w-0">
-              <h1 className="text-xl font-bold truncate">{account.name}</h1>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900 truncate">{account.name}</h1>
               <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                 {account.businessTypes.map((t) => (
                   <span key={t} className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${bizTagClass(t)}`}>
@@ -309,7 +309,7 @@ function Kpi({ label, value, accent }: { label: string; value: string; accent?: 
       }`}
     >
       <div className="text-xs text-slate-500">{label}</div>
-      <div className={`text-lg font-bold tabular-nums ${accent ? "text-emerald-700" : "text-slate-800"}`}>
+      <div className={`text-xl font-bold tracking-tight tabular-nums ${accent ? "text-emerald-700" : "text-slate-900"}`}>
         {value}
       </div>
     </div>

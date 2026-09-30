@@ -50,7 +50,7 @@ export default async function LeadDetailPage({
   }));
 
   return (
-    <div className="p-6 max-w-4xl">
+    <div className="p-6 md:p-8 max-w-4xl mx-auto">
       <div className="mb-4 flex items-start justify-between">
         <div>
           <Link href="/leads" className="text-sm text-emerald-600 hover:underline">
@@ -59,7 +59,7 @@ export default async function LeadDetailPage({
           <div className="flex items-center gap-2 mt-1">
             <Link
               href={`/accounts/${lead.account.id}`}
-              className="text-xl font-bold hover:text-emerald-700 hover:underline"
+              className="text-2xl font-bold tracking-tight text-slate-900 hover:text-emerald-700 hover:underline"
             >
               {lead.account.name}
             </Link>

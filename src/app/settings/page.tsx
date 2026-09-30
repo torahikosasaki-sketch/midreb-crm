@@ -16,11 +16,14 @@ export default async function SettingsPage() {
   const activeCount = employees.filter((e) => e.active).length;
 
   return (
-    <div className="p-6 max-w-4xl">
-      <h1 className="text-xl font-bold mb-1">設定</h1>
-      <p className="text-xs text-slate-400 mb-6">
-        従業員（担当者）マスタなど、アプリ全体で使う設定を管理します。
-      </p>
+    <div className="p-6 md:p-8 max-w-4xl mx-auto">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="h-10 w-10 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center text-xl">⚙️</div>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">設定</h1>
+          <p className="text-sm text-slate-500">従業員（担当者）マスタなど、アプリ全体で使う設定を管理します。</p>
+        </div>
+      </div>
 
       {/* 従業員 */}
       <section className="mb-10">

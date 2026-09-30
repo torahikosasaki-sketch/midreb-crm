@@ -57,9 +57,12 @@ export default async function TargetsPage() {
   const productionActual = daily.reduce((s, w) => s + (w.videoPosts ?? 0), 0);
 
   return (
-    <div className="p-6 max-w-4xl">
-      <h1 className="text-xl font-bold mb-1">目標 vs 実績</h1>
-      <p className="text-xs text-slate-400 mb-5">
+    <div className="p-6 md:p-8 max-w-4xl mx-auto">
+      <div className="flex items-center gap-3 mb-2">
+        <div className="h-10 w-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-xl">🎯</div>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">目標 vs 実績</h1>
+      </div>
+      <p className="text-xs text-slate-400 mb-6">
         実績は現時点の集計（月間GMV=現MRR／セラー数=契約中の顧客数／クリエイター数=案件進捗の動画投稿人数合計／制作本数=案件進捗の動画投稿数合計）。
       </p>
 
@@ -70,9 +73,9 @@ export default async function TargetsPage() {
           { label: "クリエイター数", value: creatorActual.toLocaleString("ja-JP") },
           { label: "制作本数", value: productionActual.toLocaleString("ja-JP") },
         ].map((c) => (
-          <div key={c.label} className="rounded-lg border border-slate-200 bg-white p-3">
-            <div className="text-xs text-slate-500">{c.label}</div>
-            <div className="text-lg font-bold text-slate-800 tabular-nums">{c.value}</div>
+          <div key={c.label} className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm">
+            <div className="text-[11px] font-medium text-slate-500">{c.label}</div>
+            <div className="mt-1 text-xl font-bold tracking-tight text-slate-900 tabular-nums">{c.value}</div>
           </div>
         ))}
       </div>

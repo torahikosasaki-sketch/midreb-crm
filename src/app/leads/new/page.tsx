@@ -22,12 +22,12 @@ export default async function NewLeadPage({
     : undefined;
 
   return (
-    <div className="p-6 max-w-3xl">
+    <div className="p-6 md:p-8 max-w-3xl mx-auto">
       <div className="mb-4">
         <Link href="/leads" className="text-sm text-emerald-600 hover:underline">
           ← リード
         </Link>
-        <h1 className="text-xl font-bold mt-1">リードを追加</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 mt-1">リードを追加</h1>
       </div>
       {accounts.length === 0 ? (
         <p className="text-sm text-slate-500">
