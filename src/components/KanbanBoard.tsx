@@ -92,7 +92,7 @@ export function KanbanBoard({ deals }: { deals: DealCard[] }) {
         </div>
         <Link
           href="/deals/new"
-          className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm shadow-emerald-600/20 hover:bg-emerald-700 transition-colors"
         >
           ＋ 商談を追加
         </Link>
@@ -141,7 +141,7 @@ function Column({
   const { setNodeRef, isOver } = useDroppable({ id: phase, disabled: !draggable });
   const total = cards.reduce((s, c) => s + c.weightedAcv, 0);
   return (
-    <div className="flex w-72 shrink-0 flex-col rounded-lg bg-slate-100">
+    <div className="flex w-72 shrink-0 flex-col rounded-xl bg-slate-100/80">
       <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-200">
         <span className={`h-2.5 w-2.5 rounded-full ${PHASE_COLORS[phase]}`} />
         <span className="font-semibold text-sm">{phase}</span>
@@ -191,8 +191,8 @@ function DraggableCard({ card }: { card: DealCard }) {
 function CardBody({ card, overlay }: { card: DealCard; overlay?: boolean }) {
   return (
     <div
-      className={`rounded-md border border-slate-200 bg-white p-3 shadow-sm ${
-        overlay ? "rotate-2 shadow-lg cursor-grabbing" : "cursor-grab hover:border-emerald-300"
+      className={`rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-all ${
+        overlay ? "rotate-2 shadow-lg cursor-grabbing" : "cursor-grab hover:border-emerald-300 hover:shadow-md"
       }`}
     >
       <div className="flex items-start justify-between gap-2">

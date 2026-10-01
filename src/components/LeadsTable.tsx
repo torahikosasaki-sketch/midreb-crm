@@ -41,15 +41,15 @@ export function LeadsTable({
 
   return (
     <div className="flex-1 min-h-0 overflow-auto">
-      <table className="w-full text-sm border-collapse">
+      <table className="w-full min-w-[780px] text-sm border-collapse">
         <thead className="sticky top-0 z-10 bg-white">
           <tr className="text-left text-slate-500 border-b border-slate-200">
-            <th className="py-2 px-2 font-medium min-w-[160px]">企業</th>
-            <th className="py-2 px-2 font-medium min-w-[150px]">リードソース</th>
-            <th className="py-2 px-2 font-medium min-w-[160px]">ステータス</th>
-            <th className="py-2 px-2 font-medium min-w-[110px]">担当</th>
-            <th className="py-2 px-2 font-medium text-right w-20">接触回数</th>
-            <th className="py-2 px-2 font-medium w-28">次回アクション</th>
+            <th className="py-2 px-2 font-medium min-w-[160px] whitespace-nowrap">企業</th>
+            <th className="py-2 px-2 font-medium min-w-[150px] whitespace-nowrap">リードソース</th>
+            <th className="py-2 px-2 font-medium min-w-[160px] whitespace-nowrap">ステータス</th>
+            <th className="py-2 px-2 font-medium min-w-[110px] whitespace-nowrap">担当</th>
+            <th className="py-2 px-2 font-medium text-right w-20 whitespace-nowrap">接触回数</th>
+            <th className="py-2 px-2 font-medium w-28 whitespace-nowrap">次回アクション</th>
             <th className="py-2 px-2 w-28"></th>
           </tr>
         </thead>

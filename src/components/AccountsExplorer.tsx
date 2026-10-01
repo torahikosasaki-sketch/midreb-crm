@@ -114,7 +114,7 @@ export function AccountsExplorer({ rows }: { rows: AccountRow[] }) {
           <Link
             key={r.id}
             href={`/accounts/${r.id}`}
-            className="flex items-center gap-4 rounded-lg border border-slate-200 bg-white px-4 py-3 hover:border-emerald-300 hover:shadow-sm transition-all"
+            className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md"
           >
             {/* 左: ロゴ + 企業名 + タグ */}
             <div className="min-w-0 w-72 shrink-0 flex items-center gap-3">
@@ -154,12 +154,12 @@ export function AccountsExplorer({ rows }: { rows: AccountRow[] }) {
 
             {/* 中: MRR + 相対バー */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-baseline gap-2">
-                <span className="text-xs text-slate-400">MRR</span>
-                <span className="font-bold text-emerald-700 tabular-nums">
+              <div className="flex items-baseline gap-2 min-w-0">
+                <span className="text-xs text-slate-400 shrink-0">MRR</span>
+                <span className="font-bold text-emerald-700 tabular-nums shrink-0">
                   {r.mrr > 0 ? formatYen(r.mrr) : "—"}
                 </span>
-                <span className="text-[11px] text-slate-400">
+                <span className="text-[11px] text-slate-400 whitespace-nowrap truncate">
                   リード {r.leads}・商談 {r.openDeals}・契約 {r.contracts}
                 </span>
               </div>
@@ -172,7 +172,7 @@ export function AccountsExplorer({ rows }: { rows: AccountRow[] }) {
             </div>
 
             {/* 右: 単発 / 拡大パイプライン / 担当 */}
-            <div className="hidden md:flex items-center gap-6 text-right shrink-0">
+            <div className="hidden lg:flex items-center gap-5 text-right shrink-0">
               <Metric label="単発(受注済)" value={r.oneTime > 0 ? formatYen(r.oneTime) : "—"} />
               <Metric label="拡大パイプライン" value={r.pipeline > 0 ? formatYen(r.pipeline) : "—"} />
               <div className="w-16">
@@ -190,7 +190,7 @@ export function AccountsExplorer({ rows }: { rows: AccountRow[] }) {
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="w-28">
-      <div className="text-[10px] text-slate-400">{label}</div>
+      <div className="text-[10px] text-slate-400 whitespace-nowrap">{label}</div>
       <div className="text-sm font-medium text-slate-700 tabular-nums">{value}</div>
     </div>
   );
